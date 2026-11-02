@@ -11,11 +11,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.workoutprogram.ui.log.LogExerciseScreen
 import com.example.workoutprogram.ui.theme.WorkoutProgramTheme
 import com.example.workoutprogram.ui.week.WeekScreen
+import com.example.workoutprogram.ui.week.WeekUnavailable
 import com.example.workoutprogram.ui.workout.WorkoutScreen
 
 class MainActivity : ComponentActivity() {
@@ -34,9 +36,18 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun WorkoutApp(viewModel: WeekViewModel = viewModel()) {
-    val week by viewModel.week.collectAsStateWithLifecycle()
+    val currentWeek by viewModel.week.collectAsStateWithLifecycle()
+    val uploading by viewModel.uploading.collectAsStateWithLifecycle()
     // Keeps scroll positions when coming back from a deeper screen.
     val saved = rememberSaveableStateHolder()
+
+    // Each return to the app picks up whatever the coach has published since.
+    LifecycleStartEffect(Unit) {
+        viewModel.refresh()
+        onStopOrDispose {}
+    }
+
+    val week = currentWeek ?: return WeekUnavailable(viewModel.loadState, viewModel::refresh)
 
     BackHandler(enabled = viewModel.canGoBack, onBack = viewModel::back)
 
@@ -44,6 +55,7 @@ private fun WorkoutApp(viewModel: WeekViewModel = viewModel()) {
         Route.Week -> saved.SaveableStateProvider("week") {
             WeekScreen(
                 week = week,
+                uploading = uploading,
                 onOpenWorkout = { viewModel.open(Route.Workout(it)) },
                 onFinishWeek = viewModel::finishWeek,
                 onReopenWeek = viewModel::reopenWeek,

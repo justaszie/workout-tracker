@@ -76,6 +76,7 @@ fun WeekScreen(
     onOpenWorkout: (String) -> Unit,
     onFinishWeek: (note: String) -> Unit,
     onReopenWeek: () -> Unit,
+    uploading: Boolean = false,
 ) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
@@ -91,7 +92,7 @@ fun WeekScreen(
                 .padding(bottom = padding.calculateBottomPadding()),
         ) {
             Header(week, onPastWeeks = { scope.launch { snackbar.showSnackbar(noPastWeeks) } })
-            if (week.isFinished) FinishedBanner(week) else CoachCard(week)
+            if (week.isFinished) FinishedBanner(week, uploading) else CoachCard(week)
             SectionLabel(
                 text = stringResource(R.string.workouts),
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
@@ -228,7 +229,7 @@ private fun CoachCard(week: ProgramWeek) {
 }
 
 @Composable
-private fun FinishedBanner(week: ProgramWeek) {
+private fun FinishedBanner(week: ProgramWeek, uploading: Boolean) {
     val colors = MaterialTheme.colorScheme
     val nextWeek = stringResource(R.string.block_week, week.block, week.number + 1)
     Column(
@@ -256,12 +257,15 @@ private fun FinishedBanner(week: ProgramWeek) {
             }
             Column {
                 Text(
-                    text = stringResource(R.string.sent_to, week.coach.name),
+                    text = stringResource(
+                        if (uploading) R.string.sending_to else R.string.sent_to,
+                        week.coach.name,
+                    ),
                     style = MaterialTheme.typography.titleMedium,
                     color = colors.onTertiaryContainer,
                 )
                 Text(
-                    text = stringResource(R.string.reviewing),
+                    text = stringResource(if (uploading) R.string.sending_hint else R.string.reviewing),
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.onTertiaryContainer,
                 )

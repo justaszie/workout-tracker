@@ -29,10 +29,11 @@ private fun done(sets: Int, reps: Int, rpe: Int, kg: Double? = null) =
     ExerciseLog(kg, rpe, List(sets) { reps })
 
 /**
- * The one week the app ships with. There is no backend yet, so this stands in for the
- * plan a coach would publish, including the client's progress from earlier in the week.
+ * A week partway through, for previews and tests. The app itself shows the week the coach
+ * published.
  */
 val SampleWeek = ProgramWeek(
+    id = "sample",
     block = 2,
     number = 3,
     theme = "Volume week — last push before the deload",

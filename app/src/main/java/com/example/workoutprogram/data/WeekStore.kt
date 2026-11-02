@@ -1,32 +1,53 @@
 package com.example.workoutprogram.data
 
+import android.content.Context
 import android.util.AtomicFile
-import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
-import java.time.LocalDate
 
 /**
- * Saves what the client entered as JSON. The plan itself comes from the [base] week, so only
- * logs, notes, links and finish dates are stored and merged back on load.
+ * Keeps the published plan and what the client entered as separate JSON files, so the week is
+ * still there without a connection. Progress is merged back onto the plan on load.
+ *
+ * The screens and [WeekUploadWorker] share one instance: reading an AtomicFile during a write
+ * deletes that write, so every access is synchronized.
  */
-class WeekStore(file: File, private val base: ProgramWeek = SampleWeek) {
-    private val file = AtomicFile(file)
+class WeekStore private constructor(planFile: File, progressFile: File) {
+    private val planFile = AtomicFile(planFile)
+    private val progressFile = AtomicFile(progressFile)
 
-    fun load(): ProgramWeek = try {
-        merge(JSONObject(String(file.readFully())))
-    } catch (_: IOException) {
-        base
-    } catch (_: JSONException) {
-        base
+    /** The saved week, or null if no plan has been saved yet. */
+    @Synchronized
+    fun load(): ProgramWeek? {
+        val plan = read(planFile, ::parseWeek) ?: return null
+        return read(progressFile) { withProgress(plan, it) } ?: plan
     }
 
-    fun save(week: ProgramWeek) {
+    /** Saves [json], the plan as the server sent it. */
+    @Synchronized
+    fun savePlan(json: String) = write(planFile, json)
+
+    @Synchronized
+    fun save(week: ProgramWeek) = write(progressFile, progressJson(week).toString())
+
+    /** What [save] last saved, or null if nothing has been. */
+    @Synchronized
+    fun progress(): JSONObject? = read(progressFile) { it }
+
+    private fun <T> read(file: AtomicFile, parse: (JSONObject) -> T): T? = try {
+        parse(JSONObject(String(file.readFully())))
+    } catch (_: IOException) {
+        null
+    } catch (_: JSONException) {
+        null
+    }
+
+    private fun write(file: AtomicFile, text: String) {
         val stream = file.startWrite()
         try {
-            stream.write(toJson(week).toString().toByteArray())
+            stream.write(text.toByteArray())
             file.finishWrite(stream)
         } catch (e: IOException) {
             file.failWrite(stream)
@@ -34,63 +55,13 @@ class WeekStore(file: File, private val base: ProgramWeek = SampleWeek) {
         }
     }
 
-    private fun toJson(week: ProgramWeek) = JSONObject().apply {
-        put("finishedOn", week.finishedOn?.toString())
-        put("note", week.note)
-        put("workouts", JSONObject().apply {
-            week.workouts.forEach { workout -> put(workout.id, toJson(workout)) }
-        })
-    }
+    companion object {
+        private var instance: WeekStore? = null
 
-    private fun toJson(workout: Workout) = JSONObject().apply {
-        put("finishedOn", workout.finishedOn?.toString())
-        put("albumLink", workout.albumLink)
-        put("logs", JSONObject().apply {
-            workout.exercises.forEach { exercise ->
-                exercise.log?.let { put(exercise.id, toJson(it)) }
-            }
-        })
+        @Synchronized
+        fun of(context: Context): WeekStore = instance ?: WeekStore(
+            planFile = File(context.filesDir, "plan.json"),
+            progressFile = File(context.filesDir, "week.json"),
+        ).also { instance = it }
     }
-
-    private fun toJson(log: ExerciseLog) = JSONObject().apply {
-        put("weightKg", log.weightKg)
-        put("rpe", log.rpe)
-        put("repsPerSet", JSONArray(log.repsPerSet))
-        put("note", log.note)
-    }
-
-    private fun merge(json: JSONObject): ProgramWeek {
-        val workouts = json.getJSONObject("workouts")
-        return base.copy(
-            finishedOn = json.date("finishedOn"),
-            note = json.getString("note"),
-            workouts = base.workouts.map { workout ->
-                workouts.optJSONObject(workout.id)?.let { merge(workout, it) } ?: workout
-            },
-        )
-    }
-
-    private fun merge(workout: Workout, json: JSONObject): Workout {
-        val logs = json.getJSONObject("logs")
-        return workout.copy(
-            finishedOn = json.date("finishedOn"),
-            albumLink = json.getString("albumLink"),
-            exercises = workout.exercises.map { exercise ->
-                exercise.copy(log = logs.optJSONObject(exercise.id)?.let(::parseLog))
-            },
-        )
-    }
-
-    private fun parseLog(json: JSONObject): ExerciseLog {
-        val reps = json.getJSONArray("repsPerSet")
-        return ExerciseLog(
-            weightKg = if (json.isNull("weightKg")) null else json.getDouble("weightKg"),
-            rpe = json.getInt("rpe"),
-            repsPerSet = List(reps.length()) { reps.getInt(it) },
-            note = json.getString("note"),
-        )
-    }
-
-    private fun JSONObject.date(key: String): LocalDate? =
-        if (isNull(key)) null else LocalDate.parse(getString(key))
 }

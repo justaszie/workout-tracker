@@ -62,6 +62,7 @@ data class Workout(
 }
 
 data class ProgramWeek(
+    val id: String,
     val block: Int,
     val number: Int,
     val theme: String,

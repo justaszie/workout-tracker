@@ -21,6 +21,7 @@ export class Refused extends Error {
 
 export interface Store {
   data(): Promise<Data>
+  coach(): Promise<Data['coach']>
   client(id: string): Promise<Client>
   addClient(client: Client): Promise<void>
   /**
@@ -177,6 +178,11 @@ export async function openStore(options: Options, seed: () => Data): Promise<Sto
           weeks: byClient.get(client.id) ?? [],
         })),
       }
+    },
+
+    async coach() {
+      const { rows } = await pool.query('select name, initials from coach')
+      return rows[0]
     },
 
     client: (id) => loadClient(pool, id),

@@ -1,7 +1,16 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+val localProperties = Properties().apply {
+    val file = providers.fileContents(layout.settingsDirectory.file("local.properties"))
+    file.asText.orNull?.let { load(it.reader()) }
+}
+
+fun quoted(text: String) = "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
     namespace = "com.example.workoutprogram"
@@ -17,6 +26,14 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Per machine, from local.properties. The app has no sign-in, so a build serves one client.
+        buildConfigField(
+            "String", "API_URL",
+            quoted(localProperties.getProperty("coach.apiUrl", "http://localhost:3000")),
+        )
+        buildConfigField("String", "API_PASSWORD", quoted(localProperties.getProperty("coach.apiPassword", "")))
+        buildConfigField("String", "CLIENT_ID", quoted(localProperties.getProperty("coach.clientId", "")))
     }
 
     buildTypes {
@@ -32,6 +49,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 }
@@ -46,6 +64,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.work.runtime)
+    testImplementation(libs.json)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

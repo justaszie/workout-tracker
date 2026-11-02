@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A client app for people working with a private coach: view the current program week, log exercises, and send the finished week to the coach. It is a single Compose activity in Material 3, implemented from a design with six boards.
 
-The Android app isn't connected to a backend yet. `SampleWeek` stands in for the coach-published plan and `WeekStore` saves the client's input to a JSON file, so "sending" a week to the coach only changes local state. Navigation is a small back stack in `WeekViewModel`, not a library.
+The Android app reads the current week from the coach server (`WeekApi`, parsed in `WeekJson.kt`) each time it comes to the foreground. `WeekStore` caches that plan and the client's input in separate JSON files, so the week works offline. Each change is saved and then uploaded whole by `WeekUploadWorker`, which WorkManager retries until the server has it, even if the app is closed. `SampleWeek` is only for previews and tests. Navigation is a small back stack in `WeekViewModel`, not a library.
 
 `web/` holds the coach web app, covered in its own section below.
 
@@ -36,6 +36,7 @@ Run from the repository root. There is one module, `:app`.
 - Text fields use `LabeledField`, which takes a `TextFieldState`. Keep that state in the screen; mirroring it through a `String` drops characters during fast typing.
 - The app is light-only and doesn't use dynamic color. Roboto Condensed is bundled in `res/font`, with its license in `assets/licenses`.
 - `minSdk` is 33, so no compatibility handling is needed for older API levels.
+- The server connection comes from gitignored `local.properties`: `coach.clientId` (required; the app has no sign-in, so each build serves one client), `coach.apiUrl` (default `http://localhost:3000`) and `coach.apiPassword`. To reach a local server from a device or emulator, run `adb reverse tcp:3000 tcp:3000`. Only debug builds allow cleartext HTTP (`app/src/debug/AndroidManifest.xml`).
 
 ## Coach web app
 
@@ -56,5 +57,5 @@ DATABASE_URL=... APP_PASSWORD=... npm start   # production; serves dist/ on all 
 - Without `APP_PASSWORD` the server has no auth and binds to localhost only. With it, every request needs HTTP Basic auth with any username and that password.
 - On Vercel (project Root Directory `web`), `vercel.json` sends `/api/*` to `api/index.ts`, which refuses to start without `APP_PASSWORD` and `DATABASE_URL`; everything else is `dist/` on the CDN. `server/index.ts` isn't used there, so static files aren't behind Basic auth; the API is.
 - The plan builder saves its fields as typed (`PlanForm`), so drafts can be incomplete. `shared/plan.ts` validates them and converts them to a `Week` on publish.
-- The client app's endpoints are `GET /api/clients/:id/current-week` and `PUT /api/clients/:id/weeks/:weekId/progress`. The progress body is the JSON `WeekStore` already writes, with exercise logs keyed by the ids from the published week.
+- The client app's endpoints are `GET /api/clients/:id/current-week`, which is the week plus its `coach`, and `PUT /api/clients/:id/weeks/:weekId/progress`. The progress body is the JSON from `progressJson` in `WeekJson.kt`, with exercise logs keyed by the ids from the published week. The device is the source of truth for the week it has: on refresh its input wins over the server's copy, and a server copy is only used when the device has none, as after a reinstall.
 - Routing is a few lines in `src/router.tsx`, not a library. Colours in `src/styles.css` match `ui/theme/Color.kt`.

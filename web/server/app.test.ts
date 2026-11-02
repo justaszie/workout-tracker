@@ -97,6 +97,11 @@ describe('plans', () => {
     assert.equal((await fetch(`${base}/clients/nobody/current-week`)).status, 404)
   })
 
+  it('names the coach with the current week', async () => {
+    const week = await publish() as Week & { coach: unknown }
+    assert.deepEqual(week.coach, (await store.data()).coach)
+  })
+
   it('has no week before the first publish', async () => {
     assert.equal((await fetch(`${base}/clients/me/current-week`)).status, 404)
   })

@@ -132,7 +132,7 @@ export function createApp(store: Store, options: Options = {}) {
   api.get('/clients/:clientId/current-week', async (req, res) => {
     const week = currentWeek(await store.client(req.params.clientId))
     if (!week) return void res.status(404).json({ errors: ['No week published yet.'] })
-    res.json(week)
+    res.json({ ...week, coach: await store.coach() })
   })
 
   api.put('/clients/:clientId/weeks/:weekId/progress', async (req, res) => {

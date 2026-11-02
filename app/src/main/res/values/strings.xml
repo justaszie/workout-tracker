@@ -16,6 +16,13 @@
     <string name="kg">%s kg</string>
     <string name="target_rpe">Target RPE %d</string>
 
+    <!-- Loading the week -->
+    <string name="no_week_title">No week yet</string>
+    <string name="no_week_body">Your first week will show up here once your coach publishes it.</string>
+    <string name="load_failed_title">Couldn\'t load your week</string>
+    <string name="load_failed_body">Check your connection and try again.</string>
+    <string name="try_again">Try again</string>
+
     <!-- Week -->
     <string name="past_weeks">Past weeks</string>
     <string name="no_past_weeks">No past weeks yet</string>
@@ -37,6 +44,8 @@
     <string name="finishing_sends">Finishing sends your results to the coach.</string>
     <string name="finish_week">Finish week</string>
     <string name="sent_to">Sent to %s</string>
+    <string name="sending_to">Sending to %s…</string>
+    <string name="sending_hint">It goes out as soon as you\'re online.</string>
     <string name="reviewing">They\'re reviewing your week.</string>
     <string name="next_week_soon">%s will show up here once she publishes it.</string>
     <string name="your_note">Your note:</string>
