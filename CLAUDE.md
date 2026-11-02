@@ -54,6 +54,7 @@ DATABASE_URL=... APP_PASSWORD=... npm start   # production; serves dist/ on all 
 - Any change to a client goes through `store.update`, which holds that client's row lock. Throw `Refused` inside it to roll back and answer with an error status. Only the draft and the latest week are written back.
 - The database sits behind this API. Client apps use the endpoints below and never connect to Postgres directly.
 - Without `APP_PASSWORD` the server has no auth and binds to localhost only. With it, every request needs HTTP Basic auth with any username and that password.
+- On Vercel (project Root Directory `web`), `vercel.json` sends `/api/*` to `api/index.ts`, which refuses to start without `APP_PASSWORD` and `DATABASE_URL`; everything else is `dist/` on the CDN. `server/index.ts` isn't used there, so static files aren't behind Basic auth; the API is.
 - The plan builder saves its fields as typed (`PlanForm`), so drafts can be incomplete. `shared/plan.ts` validates them and converts them to a `Week` on publish.
 - The client app's endpoints are `GET /api/clients/:id/current-week` and `PUT /api/clients/:id/weeks/:weekId/progress`. The progress body is the JSON `WeekStore` already writes, with exercise logs keyed by the ids from the published week.
 - Routing is a few lines in `src/router.tsx`, not a library. Colours in `src/styles.css` match `ui/theme/Color.kt`.
