@@ -1,3 +1,115 @@
 <resources>
     <string name="app_name">Workout Program</string>
+
+    <string name="block_week">Block %1$d · Week %2$d</string>
+    <string name="back">Back</string>
+    <plurals name="exercise_count">
+        <item quantity="one">%d exercise</item>
+        <item quantity="other">%d exercises</item>
+    </plurals>
+    <string name="logged_of">%1$d of %2$d logged</string>
+    <string name="coach_prefix">Coach:</string>
+    <string name="demo_video">Demo video</string>
+    <string name="setup_guide">Setup guide</string>
+    <string name="sets_reps">%1$d × %2$d</string>
+    <string name="sets_reps_per_side">%1$d × %2$d per side</string>
+    <string name="kg">%s kg</string>
+    <string name="target_rpe">Target RPE %d</string>
+
+    <!-- Week -->
+    <string name="past_weeks">Past weeks</string>
+    <string name="no_past_weeks">No past weeks yet</string>
+    <string name="current_week">Current week</string>
+    <string name="finished_waiting">Finished · waiting for coach</string>
+    <string name="started_on">Started %s</string>
+    <string name="started_finished_on">Started %1$s · finished %2$s</string>
+    <string name="your_coach">Your coach</string>
+    <string name="workouts_done">%1$d of %2$d workouts done</string>
+    <string name="in_progress_count">%d in progress</string>
+    <string name="workouts">Workouts</string>
+    <string name="exercises_done_on">%1$s · done %2$s</string>
+    <string name="in_progress_detail">In progress · %s</string>
+    <string name="done">Done</string>
+    <string name="continue_workout">Continue</string>
+    <string name="partly_done">Partly done</string>
+    <string name="skipped">Skipped</string>
+    <string name="done_for_week">Done for this week?</string>
+    <string name="finishing_sends">Finishing sends your results to the coach.</string>
+    <string name="finish_week">Finish week</string>
+    <string name="sent_to">Sent to %s</string>
+    <string name="reviewing">They\'re reviewing your week.</string>
+    <string name="next_week_soon">%s will show up here once she publishes it.</string>
+    <string name="your_note">Your note:</string>
+    <string name="reopen_week">Reopen week</string>
+    <string name="reopen_hint">Finished too early? You can reopen it until your coach publishes Week %d.</string>
+
+    <!-- Finish week dialog -->
+    <string name="finish_title">Finish %s?</string>
+    <string name="finish_body">%1$s gets your results and plans Week %2$d. Anything you haven\'t done is marked as skipped.</string>
+    <string name="partly_done_prefix">Partly done:</string>
+    <string name="partly_done_item">%1$s (%2$s)</string>
+    <string name="skipped_prefix">Skipped:</string>
+    <string name="week_note_label">Note for coach (optional)</string>
+    <string name="week_note_placeholder">e.g. Travelling Thu–Sun, no gym</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Workout -->
+    <string name="workout_eyebrow">%1$s · Workout %2$d of %3$d</string>
+    <string name="logged">Logged</string>
+    <string name="last_set_weight">Last set %1$s kg · RPE %2$d</string>
+    <string name="last_set_no_weight">Last set RPE %d</string>
+    <string name="edit">Edit</string>
+    <string name="log">Log</string>
+    <string name="videos_photos">Videos &amp; photos</string>
+    <string name="album_intro">Put your clips for this workout in a Google Photos album or Drive folder, then paste the share link here.</string>
+    <string name="album_label">Album or folder link</string>
+    <string name="album_placeholder">https://photos.app.goo.gl/…</string>
+    <string name="album_hint">Check the album is shared so your coach can open it.</string>
+    <string name="paste_link">Paste link</string>
+    <string name="not_logged_yet">%d not logged yet</string>
+    <string name="all_logged">All logged</string>
+    <string name="finish_workout">Finish workout</string>
+
+    <!-- Log exercise -->
+    <string name="exercise_eyebrow">%1$s · Exercise %2$d of %3$d</string>
+    <string name="sets">Sets</string>
+    <string name="reps">Reps</string>
+    <string name="target_rpe_label">Target RPE</string>
+    <string name="load">Load</string>
+    <string name="load_kg">Load (kg)</string>
+    <string name="load_none">—</string>
+    <string name="target_explainer">No set weight — choose one that gets you to about RPE %d on the last set.</string>
+    <string name="no_load_explainer">No load or RPE target for this one — just log how the last set felt.</string>
+    <string name="your_last_set">Your last set</string>
+    <string name="decrease_weight">Decrease weight</string>
+    <string name="increase_weight">Increase weight</string>
+    <string name="weight_used">Weight used</string>
+    <string name="kg_unit">kg</string>
+    <string name="last_week_result">Last week: %1$s kg at RPE %2$d</string>
+    <string name="rpe_on_last_set">RPE on last set</string>
+    <string name="target_short">Target %d</string>
+    <string name="rpe_n">RPE %d</string>
+    <string-array name="rpe_descriptions">
+        <item>very light, barely any effort</item>
+        <item>very light</item>
+        <item>light</item>
+        <item>light, easy to keep going</item>
+        <item>moderate, warm-up pace</item>
+        <item>about 4 more reps in the tank</item>
+        <item>about 3 more reps in the tank</item>
+        <item>about 2 more reps in the tank</item>
+        <item>maybe 1 more rep</item>
+        <item>max effort, nothing left</item>
+    </string-array>
+    <string name="completed_all_reps">Completed all reps</string>
+    <string name="sets_by_reps">%1$d sets × %2$d reps</string>
+    <string name="sets_by_reps_per_side">%1$d sets × %2$d reps per side</string>
+    <string name="enter_actual_reps">Enter the reps you actually did in each set.</string>
+    <string name="set_n">Set %d</string>
+    <string name="reps_short">%d short</string>
+    <string name="add_note">Add note for coach</string>
+    <string name="note_label">Note for coach</string>
+    <string name="note_placeholder">How did it go? Anything unusual?</string>
+    <string name="save_and_next">Save and next exercise</string>
+    <string name="save">Save</string>
 </resources>
