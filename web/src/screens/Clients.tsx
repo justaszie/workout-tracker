@@ -1,22 +1,33 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import {
   clientStatus, currentWeek, gapsText, isWaitingOnCoach, joinedText, lastActivityText, shortTheme,
   statusLabel, toDateString, waitingText, weekSummary, weekTitle,
   type Client, type ClientStatus, type Data,
 } from '../../shared/model.ts'
 import { addClient, ApiError } from '../api.ts'
-import { Icon } from '../icons.tsx'
-import { Link } from '../router.tsx'
+import {
+  Avatar, Banner, Button, Card, Chip, Dialog, FilterGroup, PageHeader, ProgressBar, SearchField,
+  Table, TableCell, TableRow, TextField, type ChipProps, type Column,
+} from '../components/index.ts'
 
 type Filter = 'all' | 'you' | 'training'
 
-const chipClass: Record<ClientStatus, string> = {
-  review: 'chip-red',
-  new: 'chip-red',
-  progress: 'chip-grey',
-  notstarted: 'chip-grey',
-  quiet: 'chip-amber',
+const chipTone: Record<ClientStatus, ChipProps['tone']> = {
+  review: 'red',
+  new: 'red',
+  progress: 'grey',
+  notstarted: 'grey',
+  quiet: 'amber',
 }
+
+const COLUMNS: Column[] = [
+  { header: 'Client', width: 'minmax(200px, 1.3fr)' },
+  { header: 'Current week', width: 'minmax(150px, 1.1fr)' },
+  { header: 'Progress', width: '170px' },
+  { header: 'Last activity', width: '150px' },
+  { header: 'Status', width: '150px' },
+  { header: 'Action', width: '150px', align: 'right' },
+]
 
 const clientLink = (client: Client) =>
   currentWeek(client) ? `/clients/${client.id}` : `/clients/${client.id}/plan`
@@ -32,35 +43,32 @@ function ClientRow({ client, today }: { client: Client; today: string }) {
   const status = clientStatus(client, today)
   const primary = status === 'review' || status === 'new'
   return (
-    <div role="row" className="row clients-grid clients-row">
-      <div role="cell" className="client-cell">
-        <span className="avatar" aria-hidden="true">{client.initials}</span>
-        <span className="client-name">{client.name}</span>
-      </div>
-      <div role="cell" className="stack">
+    <TableRow>
+      <TableCell><Avatar initials={client.initials} name={client.name} /></TableCell>
+      <TableCell stack>
         <span className="medium">{week ? weekTitle(week) : 'No program yet'}</span>
         <span className="caption">{week ? shortTheme(week.theme) : joinedText(client)}</span>
-      </div>
-      <div role="cell" className="progress-cell">
-        <span>{summary ? `${summary.done} of ${summary.total} workouts` : '—'}</span>
-        <span className="track" aria-hidden="true">
-          <span style={{ width: summary ? `${Math.round((summary.done / summary.total) * 100)}%` : 0 }} />
-        </span>
-        <span className="caption">{summary && gapsText(summary)}</span>
-      </div>
-      <span role="cell" className="muted">{lastActivityText(client, today)}</span>
-      <div role="cell"><span className={`chip ${chipClass[status]}`}>{statusLabel(client, today)}</span></div>
-      <div role="cell" className="right">
-        <Link to={clientLink(client)} className={`btn btn-sm ${primary ? 'btn-primary' : 'btn-outline'}`}>
+      </TableCell>
+      <TableCell>
+        <ProgressBar
+          value={summary ? summary.done / summary.total : 0}
+          label={summary ? `${summary.done} of ${summary.total} workouts` : '—'}
+          caption={summary ? gapsText(summary) : ''}
+        />
+      </TableCell>
+      <TableCell tone="muted">{lastActivityText(client, today)}</TableCell>
+      <TableCell><Chip tone={chipTone[status]}>{statusLabel(client, today)}</Chip></TableCell>
+      <TableCell align="right">
+        <Button to={clientLink(client)} size="sm" variant={primary ? 'primary' : 'outline'}>
           {actionLabel(status)}
-        </Link>
-      </div>
-    </div>
+        </Button>
+      </TableCell>
+    </TableRow>
   )
 }
 
 function AddClient({ onData }: { onData: (data: Data) => void }) {
-  const dialog = useRef<HTMLDialogElement>(null)
+  const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [error, setError] = useState('')
 
@@ -70,7 +78,7 @@ function AddClient({ onData }: { onData: (data: Data) => void }) {
       onData(await addClient(name))
       setName('')
       setError('')
-      dialog.current?.close()
+      setOpen(false)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't reach the server.")
     }
@@ -78,23 +86,19 @@ function AddClient({ onData }: { onData: (data: Data) => void }) {
 
   return (
     <>
-      <button type="button" className="btn btn-primary btn-icon-left" onClick={() => dialog.current?.showModal()}>
-        <Icon name="plus" />Add client
-      </button>
-      <dialog ref={dialog} className="dialog" aria-label="Add client">
-        <form onSubmit={submit}>
-          <h2>Add client</h2>
-          <label className="field">
-            <span>Name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
-          </label>
-          {error && <p role="alert" className="error-text">{error}</p>}
-          <div className="dialog-actions">
-            <button type="button" className="btn btn-text" onClick={() => dialog.current?.close()}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Add client</button>
-          </div>
-        </form>
-      </dialog>
+      <Button icon="plus" onClick={() => setOpen(true)}>Add client</Button>
+      <Dialog
+        open={open} onClose={() => setOpen(false)} title="Add client" onSubmit={submit}
+        actions={
+          <>
+            <Button variant="text" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="submit">Add client</Button>
+          </>
+        }
+      >
+        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+        {error && <p role="alert" className="error-text">{error}</p>}
+      </Dialog>
     </>
   )
 }
@@ -119,61 +123,39 @@ export function Clients({ data, onData }: { data: Data; onData: (data: Data) => 
 
   return (
     <>
-      <header className="page-header">
-        <div>
-          <h1>Clients</h1>
-          <p className="subtitle">{clients.length} {clients.length === 1 ? 'client' : 'clients'} · {coach.name}</p>
-        </div>
-        <div className="header-actions">
-          <div className="search">
-            <Icon name="search" />
-            <input
-              type="search" aria-label="Search clients" placeholder="Search clients"
-              value={search} onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <AddClient onData={onData} />
-        </div>
-      </header>
+      <PageHeader
+        title="Clients"
+        subtitle={`${clients.length} ${clients.length === 1 ? 'client' : 'clients'} · ${coach.name}`}
+        actions={
+          <>
+            <SearchField label="Search clients" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <AddClient onData={onData} />
+          </>
+        }
+      />
 
       {waiting.length > 0 && (
-        <section className="banner">
-          <span className="banner-icon" aria-hidden="true"><Icon name="clipboard" size={22} /></span>
-          <div className="banner-text">
-            <p className="banner-title">
-              {waiting.length} {waiting.length === 1 ? 'client is' : 'clients are'} waiting on you
-            </p>
-            <p>{waitingText(waiting, today)}</p>
-          </div>
-          <Link to={clientLink(waiting[0])} className="btn btn-sm btn-white">Start reviewing</Link>
-        </section>
+        <Banner
+          icon="clipboard"
+          title={`${waiting.length} ${waiting.length === 1 ? 'client is' : 'clients are'} waiting on you`}
+          action={<Button to={clientLink(waiting[0])} variant="white" size="sm">Start reviewing</Button>}
+        >
+          {waitingText(waiting, today)}
+        </Banner>
       )}
 
-      <div role="group" aria-label="Filter clients" className="filters">
-        {(['all', 'you', 'training'] as const).map((key) => (
-          <button
-            key={key} type="button" aria-pressed={filter === key}
-            className="filter" onClick={() => setFilter(key)}
-          >
-            {labels[key]} · {counts[key]}
-          </button>
-        ))}
-      </div>
+      <FilterGroup
+        label="Filter clients"
+        options={(['all', 'you', 'training'] as const).map((key) => ({ value: key, label: `${labels[key]} · ${counts[key]}` }))}
+        value={filter}
+        onChange={(value) => setFilter(value as Filter)}
+      />
 
-      <div className="card table-scroll">
-        <div role="table" aria-label="Clients" className="clients-table">
-          <div role="row" className="row-head clients-grid">
-            <span role="columnheader">Client</span>
-            <span role="columnheader">Current week</span>
-            <span role="columnheader">Progress</span>
-            <span role="columnheader">Last activity</span>
-            <span role="columnheader">Status</span>
-            <span role="columnheader" className="right">Action</span>
-          </div>
+      <Card clip>
+        <Table label="Clients" columns={COLUMNS} minWidth={1000} empty="No clients match.">
           {visible.map((client) => <ClientRow key={client.id} client={client} today={today} />)}
-          {visible.length === 0 && <p className="empty">No clients match.</p>}
-        </div>
-      </div>
+        </Table>
+      </Card>
     </>
   )
 }

@@ -6,14 +6,17 @@ import {
 } from '../../shared/model.ts'
 import { blankExercise, blankPlan, blankWorkout, copyWeek, duplicateWorkout } from '../../shared/plan.ts'
 import { ApiError, publishWeek, saveDraft } from '../api.ts'
-import { GripIcon, Icon, type IconName } from '../icons.tsx'
-import { Link, navigate } from '../router.tsx'
+import {
+  Breadcrumbs, Button, Callout, Card, ErrorList, FlagItem, FlagList, GripIcon, IconButton, Input, Link,
+  ListRow, NumberBadge, PageHeader, SegmentedControl, TextField, TextLink, type IconName, type Option,
+} from '../components/index.ts'
+import { navigate } from '../router.tsx'
 
-const TARGET_TYPES = [
-  { key: 'kg', label: 'Load' },
-  { key: 'rpe', label: 'RPE' },
-  { key: 'none', label: 'None' },
-] as const
+const TARGET_TYPES: Option[] = [
+  { value: 'kg', label: 'Load' },
+  { value: 'rpe', label: 'RPE' },
+  { value: 'none', label: 'None' },
+]
 
 const replaceAt = <T,>(list: T[], index: number, item: T) => list.map((it, i) => (i === index ? item : it))
 const removeAt = <T,>(list: T[], index: number) => list.filter((_, i) => i !== index)
@@ -42,64 +45,48 @@ function ExerciseRow({ exercise, n, onChange, onRemove, onDragStart, onDrop }: E
     >
       <div className="exercise-grid">
         <span className="grip" aria-hidden="true" draggable onDragStart={onDragStart}><GripIcon /></span>
-        <input
-          aria-label={`Exercise ${n} name`} placeholder="Exercise name" className="input input-strong"
+        <Input
+          aria-label={`Exercise ${n} name`} placeholder="Exercise name" variant="strong"
           value={exercise.name} onChange={(e) => onChange({ name: e.target.value })}
         />
-        <input
-          aria-label={`Exercise ${n} sets`} type="number" inputMode="numeric" min="1" className="input center"
+        <Input
+          aria-label={`Exercise ${n} sets`} type="number" inputMode="numeric" min="1" center
           value={exercise.sets} onChange={(e) => onChange({ sets: e.target.value })}
         />
-        <input
-          aria-label={`Exercise ${n} reps`} className="input center"
+        <Input
+          aria-label={`Exercise ${n} reps`} center
           value={exercise.reps} onChange={(e) => onChange({ reps: e.target.value })}
         />
-        <div role="group" aria-label={`Exercise ${n} target type`} className="segments">
-          {TARGET_TYPES.map(({ key, label }) => (
-            <button key={key} type="button" aria-pressed={exercise.type === key} onClick={() => onChange({ type: key })}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="target">
-          {exercise.type === 'kg' && (
-            <>
-              <input
-                aria-label={`Exercise ${n} load in kg`} type="number" inputMode="decimal" step="0.5" min="0"
-                className="input input-kg" value={exercise.kg} onChange={(e) => onChange({ kg: e.target.value })}
-              />
-              <span className="unit-right" aria-hidden="true">kg</span>
-            </>
-          )}
-          {exercise.type === 'rpe' && (
-            <>
-              <span className="unit-left" aria-hidden="true">RPE</span>
-              <input
-                aria-label={`Exercise ${n} target RPE, 1 to 10`} type="number" inputMode="numeric" min="1" max="10"
-                className="input input-rpe" value={exercise.rpe} onChange={(e) => onChange({ rpe: e.target.value })}
-              />
-            </>
-          )}
-          {exercise.type === 'none' && <span className="no-target">No target</span>}
-        </div>
-        <button type="button" className="icon-btn" aria-label={`Remove exercise ${n}`} onClick={onRemove}>
-          <Icon name="trash" />
-        </button>
+        <SegmentedControl
+          label={`Exercise ${n} target type`} options={TARGET_TYPES} value={exercise.type}
+          onChange={(type) => onChange({ type: type as PlanExercise['type'] })}
+        />
+        {exercise.type === 'kg' && (
+          <Input
+            aria-label={`Exercise ${n} load in kg`} type="number" inputMode="decimal" step="0.5" min="0"
+            unit="kg" value={exercise.kg} onChange={(e) => onChange({ kg: e.target.value })}
+          />
+        )}
+        {exercise.type === 'rpe' && (
+          <Input
+            aria-label={`Exercise ${n} target RPE, 1 to 10`} type="number" inputMode="numeric" min="1" max="10"
+            unit="RPE" unitPosition="left" value={exercise.rpe} onChange={(e) => onChange({ rpe: e.target.value })}
+          />
+        )}
+        {exercise.type === 'none' && <span className="no-target">No target</span>}
+        <IconButton icon="trash" label={`Remove exercise ${n}`} onClick={onRemove} />
       </div>
       <div className="exercise-extra">
         <span />
-        <input
+        <Input
           aria-label={`Exercise ${n} note for client`} placeholder="Note for client (optional)"
-          className="input input-quiet" value={exercise.note} onChange={(e) => onChange({ note: e.target.value })}
+          variant="quiet" value={exercise.note} onChange={(e) => onChange({ note: e.target.value })}
         />
-        <div className="link-field">
-          <Icon name="link" size={18} />
-          <input
-            aria-label={`Exercise ${n} video or guide link`} type="url"
-            placeholder="Video or guide link (optional)" className="input input-quiet input-link"
-            value={exercise.link} onChange={(e) => onChange({ link: e.target.value })}
-          />
-        </div>
+        <Input
+          aria-label={`Exercise ${n} video or guide link`} type="url" icon="link"
+          placeholder="Video or guide link (optional)" variant="quiet"
+          value={exercise.link} onChange={(e) => onChange({ link: e.target.value })}
+        />
         <span />
       </div>
     </div>
@@ -129,24 +116,18 @@ function WorkoutEditor({ workout, n, onChange, onDuplicate, onDelete, onCollapse
   }
 
   return (
-    <section aria-label={`Workout ${n}`} className="card editor">
+    <Card label={`Workout ${n}`} padded>
       <div className="editor-head">
-        <span className="number number-active" aria-hidden="true">{n}</span>
+        <NumberBadge active>{n}</NumberBadge>
         <input
           aria-label={`Workout ${n} name`} className="workout-name"
           value={workout.name} onChange={(e) => onChange({ ...workout, name: e.target.value })}
         />
         <span className="muted small">{count} {count === 1 ? 'exercise' : 'exercises'}</span>
         <div className="icon-row">
-          <button type="button" className="icon-btn" aria-label="Duplicate workout" onClick={onDuplicate}>
-            <Icon name="copy" size={22} />
-          </button>
-          <button type="button" className="icon-btn" aria-label="Delete workout" onClick={onDelete}>
-            <Icon name="trash" size={22} />
-          </button>
-          <button type="button" className="icon-btn" aria-label="Collapse workout" aria-expanded="true" onClick={onCollapse}>
-            <Icon name="collapse" size={22} />
-          </button>
+          <IconButton icon="copy" iconSize={22} label="Duplicate workout" onClick={onDuplicate} />
+          <IconButton icon="trash" iconSize={22} label="Delete workout" onClick={onDelete} />
+          <IconButton icon="collapse" iconSize={22} label="Collapse workout" aria-expanded="true" onClick={onCollapse} />
         </div>
       </div>
 
@@ -172,10 +153,10 @@ function WorkoutEditor({ workout, n, onChange, onDuplicate, onDelete, onCollapse
         </div>
       </div>
 
-      <button type="button" className="btn btn-text btn-compact btn-icon-left" onClick={() => setExercises([...exercises, blankExercise()])}>
-        <Icon name="plus" />Add exercise
-      </button>
-    </section>
+      <Button variant="text" size="compact" icon="plus" onClick={() => setExercises([...exercises, blankExercise()])}>
+        Add exercise
+      </Button>
+    </Card>
   )
 }
 
@@ -202,33 +183,29 @@ function PreviousWeek({ client, week }: { client: Client; week: Week }) {
 
   return (
     <aside className="aside">
-      <section aria-label="Previous week at a glance" className="card glance">
+      <Card label="Previous week at a glance" padded className="glance">
         <div>
           <h2>Previous week at a glance</h2>
           <p className="muted small">{weekTitle(week)} · {summary.done} of {summary.total} done{gaps && `, ${gaps}`}</p>
         </div>
-        <ul>
+        <FlagList>
           {flagged.map((exercise) => (
-            <li key={exercise.id}>
-              <span className={`flag ${aboveTargetRpe(exercise) || missedReps(exercise) ? 'flag-red' : ''}`} aria-hidden="true">
-                <Icon name={flagIcon(exercise)} size={16} weight={2.5} />
-              </span>
-              <p><strong>{exercise.name}</strong><br /><span className="muted">{flagText(exercise)}</span></p>
-            </li>
+            <FlagItem
+              key={exercise.id} icon={flagIcon(exercise)} title={exercise.name}
+              tone={aboveTargetRpe(exercise) || missedReps(exercise) ? 'red' : 'neutral'}
+            >
+              {flagText(exercise)}
+            </FlagItem>
           ))}
           {skipped.length > 0 && (
-            <li>
-              <span className="flag" aria-hidden="true"><Icon name="minus" size={16} weight={2.5} /></span>
-              <p>
-                <strong>Skipped {skipped.map((workout) => workout.name).join(' and ')}</strong>
-                {week.note && <><br /><span className="muted">“{week.note}”</span></>}
-              </p>
-            </li>
+            <FlagItem icon="minus" title={`Skipped ${skipped.map((workout) => workout.name).join(' and ')}`}>
+              {week.note && `“${week.note}”`}
+            </FlagItem>
           )}
-        </ul>
+        </FlagList>
         {flagged.length === 0 && skipped.length === 0 && <p className="muted small">Nothing to flag.</p>}
-        <Link to={`/clients/${client.id}`} className="text-link">Open full review<Icon name="arrow" size={18} /></Link>
-      </section>
+        <TextLink to={`/clients/${client.id}`}>Open full review</TextLink>
+      </Card>
     </aside>
   )
 }
@@ -273,6 +250,7 @@ function Planner({ client, onData }: { client: Client; onData: (data: Data) => v
     setOpenId(workout.id)
   }
 
+  const heading = previous ? 'Plan next week' : 'Plan first week'
   const copiedFrom = previous && `copied from Week ${previous.number}`
   const subtitle = (workout: PlanWorkout) => {
     const count = workout.exercises.length
@@ -284,80 +262,73 @@ function Planner({ client, onData }: { client: Client; onData: (data: Data) => v
   const before = openIndex < 0 ? form.workouts : form.workouts.slice(0, openIndex)
   const after = openIndex < 0 ? [] : form.workouts.slice(openIndex + 1)
   const collapsed = (workouts: PlanWorkout[], offset: number) => workouts.length > 0 && (
-    <section aria-label="Other workouts" className="card clip">
+    <Card label="Other workouts" clip>
       {workouts.map((workout, i) => (
-        <div key={workout.id} className="other-workout">
-          <span className="number" aria-hidden="true">{offset + i + 1}</span>
-          <div className="grow">
-            <p className="other-title">{workout.name || 'Unnamed workout'}</p>
-            <p className="muted small">{subtitle(workout)}</p>
-          </div>
-          <button
-            type="button" className="btn btn-sm btn-outline"
-            aria-label={`Edit workout ${offset + i + 1}, ${workout.name}`}
-            onClick={() => setOpenId(workout.id)}
-          >
-            Edit
-          </button>
-        </div>
+        <ListRow
+          key={workout.id}
+          leading={<NumberBadge>{offset + i + 1}</NumberBadge>}
+          title={workout.name || 'Unnamed workout'}
+          subtitle={subtitle(workout)}
+          action={
+            <Button
+              variant="outline" size="sm" aria-label={`Edit workout ${offset + i + 1}, ${workout.name}`}
+              onClick={() => setOpenId(workout.id)}
+            >
+              Edit
+            </Button>
+          }
+        />
       ))}
-    </section>
+    </Card>
   )
 
   return (
     <>
-      <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/">Clients</Link><span aria-hidden="true">›</span>
-        {previous ? <Link to={`/clients/${client.id}`}>{client.name}</Link> : <span>{client.name}</span>}
-        <span aria-hidden="true">›</span>
-        <span aria-current="page">{previous ? 'Plan next week' : 'Plan first week'}</span>
-      </nav>
+      <Breadcrumbs
+        items={[
+          { label: 'Clients', to: '/' },
+          { label: client.name, to: previous && `/clients/${client.id}` },
+          { label: heading },
+        ]}
+      />
 
-      <header className="page-header">
-        <div>
-          <h1>{previous ? 'Plan next week' : 'Plan first week'}</h1>
-          <p className="subtitle">For {client.name}{previous && ` · follows ${weekTitle(previous)}`}</p>
-        </div>
-        <div className="header-actions">
-          {saved && <span role="status" className="muted small">Draft saved</span>}
-          <button type="button" className="btn btn-outline" onClick={save}>Save draft</button>
-          <button type="button" className="btn btn-primary btn-icon-left" onClick={publish}>
-            <Icon name="send" />Publish to {name}
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        title={heading}
+        subtitle={`For ${client.name}${previous ? ` · follows ${weekTitle(previous)}` : ''}`}
+        actions={
+          <>
+            {saved && <span role="status" className="muted small">Draft saved</span>}
+            <Button variant="outline" onClick={save}>Save draft</Button>
+            <Button icon="send" onClick={publish}>Publish to {name}</Button>
+          </>
+        }
+      />
 
-      {errors.length > 0 && (
-        <section role="alert" className="errors">
-          <p className="medium">Fix these before publishing:</p>
-          <ul>{errors.map((error) => <li key={error}>{error}</li>)}</ul>
-        </section>
-      )}
+      {errors.length > 0 && <ErrorList title="Fix these before publishing:" errors={errors} />}
 
       <div className="plan-layout">
         <div className="plan-main">
-          <section aria-label="Week details" className="card week-details">
+          <Card label="Week details" padded className="week-details">
             <div className="week-fields">
-              <label className="field field-title">
-                <span>Week title</span>
-                <input value={form.title} onChange={(e) => change({ ...form, title: e.target.value })} />
-              </label>
-              <label className="field field-purpose">
-                <span>Purpose (shown to client)</span>
-                <input
-                  placeholder="What is this week for?" value={form.purpose}
-                  onChange={(e) => change({ ...form, purpose: e.target.value })}
-                />
-              </label>
+              <TextField
+                label="Week title" className="field-title"
+                value={form.title} onChange={(e) => change({ ...form, title: e.target.value })}
+              />
+              <TextField
+                label="Purpose (shown to client)" className="field-purpose"
+                placeholder="What is this week for?" value={form.purpose}
+                onChange={(e) => change({ ...form, purpose: e.target.value })}
+              />
             </div>
             {previous && (
-              <div className="copied">
-                <Icon name="copy" />
-                <p>Copied from <strong>{weekTitle(previous)}</strong>. Change what's different.</p>
-                <button type="button" className="btn btn-text btn-compact" onClick={startFromScratch}>Start from scratch</button>
-              </div>
+              <Callout
+                icon="copy"
+                action={<Button variant="text" size="compact" onClick={startFromScratch}>Start from scratch</Button>}
+              >
+                Copied from <strong>{weekTitle(previous)}</strong>. Change what's different.
+              </Callout>
             )}
-          </section>
+          </Card>
 
           {collapsed(before, 0)}
           {openIndex >= 0 && (
@@ -377,12 +348,12 @@ function Planner({ client, onData }: { client: Client; onData: (data: Data) => v
           )}
           {collapsed(after, openIndex + 1)}
 
-          <button
-            type="button" className="btn btn-outline btn-icon-left self-start"
+          <Button
+            variant="outline" icon="plus" className="self-start"
             onClick={() => addWorkout(blankWorkout(`Workout ${form.workouts.length + 1}`))}
           >
-            <Icon name="plus" />Add workout
-          </button>
+            Add workout
+          </Button>
         </div>
         {previous?.finishedOn && <PreviousWeek client={client} week={previous} />}
       </div>

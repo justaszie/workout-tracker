@@ -3,16 +3,27 @@ import {
   missedReps, nextWeekTitle, plannedText, repsText, safeUrl, weekSummary, weekTitle, workoutState,
   type Client, type Data, type Exercise, type Week, type Workout, type WorkoutState,
 } from '../../shared/model.ts'
-import { Icon } from '../icons.tsx'
-import { Link } from '../router.tsx'
+import {
+  Avatar, Breadcrumbs, Button, Card, Chip, Chips, Link, LinkChip, NoteCard, NumberBadge, PageHeader,
+  Table, TableCell, TableRow, type ChipProps, type Column,
+} from '../components/index.ts'
 
-const stateChip: Record<WorkoutState, { label: string; className: string }> = {
-  done: { label: 'Done', className: 'chip-green' },
-  partly: { label: 'Partly done', className: 'chip-grey' },
-  skipped: { label: 'Skipped', className: 'chip-red' },
-  started: { label: 'In progress', className: 'chip-grey' },
-  todo: { label: 'To do', className: 'chip-grey' },
+const stateChip: Record<WorkoutState, { label: string; tone: ChipProps['tone'] }> = {
+  done: { label: 'Done', tone: 'green' },
+  partly: { label: 'Partly done', tone: 'grey' },
+  skipped: { label: 'Skipped', tone: 'red' },
+  started: { label: 'In progress', tone: 'grey' },
+  todo: { label: 'To do', tone: 'grey' },
 }
+
+const COLUMNS: Column[] = [
+  { header: 'Exercise', width: 'minmax(190px, 1.3fr)' },
+  { header: 'Planned', width: '170px' },
+  { header: 'Last set', width: '130px' },
+  { header: 'RPE', width: '120px' },
+  { header: 'Reps', width: '120px' },
+  { header: 'Client note', width: 'minmax(200px, 1.4fr)' },
+]
 
 function workoutSubtitle(week: Week, workout: Workout) {
   const logged = loggedCount(workout)
@@ -33,29 +44,29 @@ function weightText(exercise: Exercise) {
 function ResultRow({ exercise }: { exercise: Exercise }) {
   const { load, log } = exercise
   return (
-    <div role="row" className="row results-grid results-row">
-      <span role="cell" className="medium">{exercise.name}</span>
-      <span role="cell" className="muted">{plannedText(exercise)}</span>
+    <TableRow align="start">
+      <TableCell tone="medium">{exercise.name}</TableCell>
+      <TableCell tone="muted">{plannedText(exercise)}</TableCell>
       {log ? (
         <>
-          <span role="cell" className={(loadDifference(exercise) ?? 0) > 0 ? 'bold' : ''}>{weightText(exercise)}</span>
-          <span role="cell" className={aboveTargetRpe(exercise) ? 'flagged' : ''}>
+          <TableCell tone={(loadDifference(exercise) ?? 0) > 0 ? 'bold' : undefined}>{weightText(exercise)}</TableCell>
+          <TableCell tone={aboveTargetRpe(exercise) ? 'flagged' : undefined}>
             {load.type === 'rpe' ? `${log.rpe} (target ${load.rpe})` : log.rpe}
-          </span>
-          <span role="cell" className={missedReps(exercise) ? 'flagged' : ''}>
+          </TableCell>
+          <TableCell tone={missedReps(exercise) ? 'flagged' : undefined}>
             {missedReps(exercise) ? repsText(log) : 'All done'}
-          </span>
-          <span role="cell" className="muted">{log.note}</span>
+          </TableCell>
+          <TableCell tone="muted">{log.note}</TableCell>
         </>
       ) : (
         <>
-          <span role="cell" className="muted">Not logged</span>
-          <span role="cell" className="muted">—</span>
-          <span role="cell" className="muted">—</span>
-          <span role="cell" />
+          <TableCell tone="muted">Not logged</TableCell>
+          <TableCell tone="muted">—</TableCell>
+          <TableCell tone="muted">—</TableCell>
+          <TableCell />
         </>
       )}
-    </div>
+    </TableRow>
   )
 }
 
@@ -64,36 +75,22 @@ function WorkoutCard({ week, workout, n }: { week: Week; workout: Workout; n: nu
   const album = safeUrl(workout.albumLink)
   const logged = loggedCount(workout) > 0
   return (
-    <section aria-label={workout.name} className="card clip">
+    <Card label={workout.name} clip>
       <div className="workout-head">
-        <span className="number" aria-hidden="true">{n}</span>
+        <NumberBadge>{n}</NumberBadge>
         <div className="grow">
           <h2>{workout.name}</h2>
           <p className="muted small">{workoutSubtitle(week, workout)}</p>
         </div>
-        {album && (
-          <a href={album} target="_blank" rel="noreferrer" className="link-chip">
-            <Icon name="album" size={18} />Videos &amp; photos
-          </a>
-        )}
-        <span className={`chip ${chip.className}`}>{chip.label}</span>
+        {album && <LinkChip href={album}>Videos &amp; photos</LinkChip>}
+        <Chip tone={chip.tone}>{chip.label}</Chip>
       </div>
       {logged && (
-        <div className="table-scroll">
-          <div role="table" aria-label={`${workout.name} results`} className="results-table">
-            <div role="row" className="row-head row-head-tinted results-grid">
-              <span role="columnheader">Exercise</span>
-              <span role="columnheader">Planned</span>
-              <span role="columnheader">Last set</span>
-              <span role="columnheader">RPE</span>
-              <span role="columnheader">Reps</span>
-              <span role="columnheader">Client note</span>
-            </div>
-            {workout.exercises.map((exercise) => <ResultRow key={exercise.id} exercise={exercise} />)}
-          </div>
-        </div>
+        <Table label={`${workout.name} results`} columns={COLUMNS} minWidth={880} tinted>
+          {workout.exercises.map((exercise) => <ResultRow key={exercise.id} exercise={exercise} />)}
+        </Table>
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -110,44 +107,28 @@ function WeekResults({ client, week }: { client: Client; week: Week }) {
 
   return (
     <>
-      <nav aria-label="Breadcrumb" className="crumbs">
-        <Link to="/">Clients</Link><span aria-hidden="true">›</span>
-        <span>{client.name}</span><span aria-hidden="true">›</span>
-        <span aria-current="page">{title}</span>
-      </nav>
+      <Breadcrumbs items={[{ label: 'Clients', to: '/' }, { label: client.name }, { label: title }]} />
 
-      <header className="page-header">
-        <div className="review-title">
-          <div className="client-cell">
-            <span className="avatar" aria-hidden="true">{client.initials}</span>
-            <span className="client-name-large">{client.name}</span>
-          </div>
-          <h1>{title}</h1>
-          {week.theme && <p className="lead">{week.theme}</p>}
-          <div className="chips">
-            {week.finishedOn && (
-              <span className="chip chip-green chip-icon">
-                <Icon name="check" size={16} weight={2.5} />Finished {formatDate(week.finishedOn)}
-              </span>
-            )}
-            <span className="chip chip-grey">Started {formatDate(week.startedOn)}</span>
-          </div>
-        </div>
-        {week.finishedOn && (
-          <Link to={`/clients/${client.id}/plan`} className="btn btn-primary btn-icon-right">
-            Plan {nextWeekTitle(week)}<Icon name="arrow" />
-          </Link>
+      <PageHeader
+        title={title}
+        leading={<Avatar initials={client.initials} name={client.name} large />}
+        actions={week.finishedOn && (
+          <Button to={`/clients/${client.id}/plan`} icon="arrow" iconPosition="right">
+            Plan {nextWeekTitle(week)}
+          </Button>
         )}
-      </header>
+      >
+        {week.theme && <p className="lead">{week.theme}</p>}
+        <Chips>
+          {week.finishedOn && <Chip tone="green" icon="check">Finished {formatDate(week.finishedOn)}</Chip>}
+          <Chip>Started {formatDate(week.startedOn)}</Chip>
+        </Chips>
+      </PageHeader>
 
       {week.note && (
-        <section aria-label="Client's note for the week" className="card note">
-          <span className="note-icon" aria-hidden="true"><Icon name="chat" size={22} /></span>
-          <div>
-            <p className="eyebrow">{firstName(client.name)}'s note when finishing the week</p>
-            <p className="lead">“{week.note}”</p>
-          </div>
-        </section>
+        <NoteCard label="Client's note for the week" eyebrow={`${firstName(client.name)}'s note when finishing the week`}>
+          “{week.note}”
+        </NoteCard>
       )}
 
       <div className="summary">
@@ -155,13 +136,9 @@ function WeekResults({ client, week }: { client: Client; week: Week }) {
           <strong>{summary.done} of {summary.total} workouts done</strong>
           <span className="muted"> · {rest}</span>
         </p>
-        {summary.aboveRpe > 0 && <span className="chip chip-red">{summary.aboveRpe} above target RPE</span>}
-        {summary.missedReps > 0 && <span className="chip chip-red">{summary.missedReps} with missed reps</span>}
-        {summary.notes > 0 && (
-          <span className="chip chip-grey">
-            {summary.notes} exercise {summary.notes === 1 ? 'note' : 'notes'}
-          </span>
-        )}
+        {summary.aboveRpe > 0 && <Chip tone="red">{summary.aboveRpe} above target RPE</Chip>}
+        {summary.missedReps > 0 && <Chip tone="red">{summary.missedReps} with missed reps</Chip>}
+        {summary.notes > 0 && <Chip>{summary.notes} exercise {summary.notes === 1 ? 'note' : 'notes'}</Chip>}
       </div>
 
       {week.workouts.map((workout, i) => (
