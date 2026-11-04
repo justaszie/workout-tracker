@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Current week</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/workout-coach/tokens.css">
+<link rel="stylesheet" href="ds/workout-coach/components/bundle.css">
+<script src="ds/workout-coach/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#C8102E}a:hover{color:#9E0B22}
+</style>
+</helmet>
+<div class="shell">
+<x-import component-from-global-scope="WorkoutCoach.NavRail" items="{{nav}}"></x-import>
+<main class="main">
+<div class="page">
+
+<x-import component-from-global-scope="WorkoutCoach.Breadcrumbs" items="{{crumbs}}"></x-import>
+
+<header class="page-header">
+<div class="page-title-stack">
+<x-import component-from-global-scope="WorkoutCoach.Avatar" initials="AP" name="Alex Petrauskas" large="{{yes}}"></x-import>
+<h1>Block 3 · Week 1</h1>
+<p class="lead">Intensity — first heavy week</p>
+<div class="chips">
+<x-import component-from-global-scope="WorkoutCoach.Chip">Started Mon 2 Nov</x-import>
+<x-import component-from-global-scope="WorkoutCoach.Chip">Week 9 of 9</x-import>
+</div>
+</div>
+<div class="header-actions">
+<a class="btn btn-outline" href="Main.dc.html">Previous week</a>
+<a class="btn btn-primary" href="Edit.dc.html">Edit plan</a>
+</div>
+</header>
+
+<div class="summary">
+<p><strong>1 of 4 workouts done</strong><span class="muted"> · 1 in progress · 2 to do · 5 of 14 exercises logged</span></p>
+</div>
+
+<sc-for list="{{workouts}}" as="workout" hint-placeholder-count="4">
+<section aria-label="{{workout.name}}" class="card clip">
+<div class="workout-head">
+<x-import component-from-global-scope="WorkoutCoach.NumberBadge">{{workout.n}}</x-import>
+<div class="grow">
+<h2>{{workout.name}}</h2>
+<p class="muted small">{{workout.subtitle}}</p>
+</div>
+<x-import component-from-global-scope="WorkoutCoach.Chip" tone="{{workout.tone}}" icon="{{workout.icon}}">{{workout.state}}</x-import>
+</div>
+
+<sc-if value="{{workout.logged}}" hint-placeholder-val="{{yes}}">
+<x-import component-from-global-scope="WorkoutCoach.Table" label="{{workout.name}} results" columns="{{resultCols}}" min-width="{{minWidth}}" tinted="{{yes}}">
+<sc-for list="{{workout.exercises}}" as="ex" hint-placeholder-count="3">
+<x-import component-from-global-scope="WorkoutCoach.TableRow" align="start">
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="medium">{{ex.name}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="muted">{{ex.planned}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="{{ex.tone}}">{{ex.weight}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="{{ex.tone}}">{{ex.rpe}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="{{ex.tone}}">{{ex.reps}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="muted">{{ex.note}}</x-import>
+</x-import>
+</sc-for>
+</x-import>
+</sc-if>
+
+<sc-if value="{{workout.planOnly}}" hint-placeholder-val="{{no}}">
+<x-import component-from-global-scope="WorkoutCoach.Table" label="{{workout.name}} plan" columns="{{planCols}}" min-width="{{minWidth}}" tinted="{{yes}}">
+<sc-for list="{{workout.exercises}}" as="ex" hint-placeholder-count="3">
+<x-import component-from-global-scope="WorkoutCoach.TableRow" align="start">
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="medium">{{ex.name}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell">{{ex.planned}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="muted">{{ex.coachNote}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="muted">{{ex.link}}</x-import>
+</x-import>
+</sc-for>
+</x-import>
+</sc-if>
+</section>
+</sc-for>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const r = (name, planned, weight, rpe, reps, note) => ({ name, planned, weight, rpe, reps, note: note || '', tone: undefined });
+    const pending = (name, planned) => ({ name, planned, weight: 'Not logged yet', rpe: '', reps: '', note: '', tone: 'muted' });
+    const p = (name, planned, coachNote, link) => ({ name, planned, coachNote: coachNote || '—', link: link || '—' });
+    const workout = (w) => ({ logged: false, planOnly: false, icon: null, ...w });
+    return {
+      yes: true,
+      no: false,
+      minWidth: 960,
+      nav: [
+        { label: 'Clients', icon: 'clients', to: '/', current: true },
+        { label: 'Library', icon: 'library', disabled: true },
+        { label: 'Settings', icon: 'settings', disabled: true },
+      ],
+      crumbs: [
+        { label: 'Clients', to: '/' },
+        { label: 'Alex Petrauskas' },
+        { label: 'History', to: '/clients/alex/history' },
+        { label: 'Block 3 · Week 1' },
+      ],
+      resultCols: [
+        { header: 'Exercise', width: 'minmax(180px, 1.2fr)' },
+        { header: 'Planned', width: '160px' },
+        { header: 'Last set', width: '130px' },
+        { header: 'RPE', width: '100px' },
+        { header: 'Reps', width: '120px' },
+        { header: 'Client note', width: 'minmax(180px, 1.3fr)' },
+      ],
+      planCols: [
+        { header: 'Exercise', width: 'minmax(180px, 1.2fr)' },
+        { header: 'Planned', width: '180px' },
+        { header: 'Note for client', width: 'minmax(220px, 1.6fr)' },
+        { header: 'Link', width: '160px' },
+      ],
+      workouts: [
+        workout({
+          n: 1, name: 'Lower A', subtitle: 'Mon 2 Nov · 4 of 4 logged', state: 'Done', tone: 'green', icon: 'check', logged: true,
+          exercises: [
+            r('Back squat', '4 × 5 · 95 kg', '95 kg', '8', 'All done', 'Moved well.'),
+            r('Romanian deadlift', '3 × 8 · RPE 7', '82.5 kg', '7', 'All done'),
+            r('Bulgarian split squat', '3 × 10 / side · 22.5 kg', '22.5 kg', '8', 'All done'),
+            r('Standing calf raise', '3 × 12 · RPE 8', '40 kg', '8', 'All done'),
+          ],
+        }),
+        workout({
+          n: 2, name: 'Upper A', subtitle: 'Wed 4 Nov · 1 of 3 logged', state: 'In progress', tone: 'grey', logged: true,
+          exercises: [
+            r('Bench press', '4 × 5 · 75 kg', '75 kg', '8', 'All done'),
+            pending('Pull-up', '4 × 6 · RPE 8'),
+            pending('Overhead press', '3 × 8 · 47.5 kg'),
+          ],
+        }),
+        workout({
+          n: 3, name: 'Lower B', subtitle: '3 exercises · not started', state: 'To do', tone: 'grey', planOnly: true,
+          exercises: [
+            p('Deadlift', '3 × 4 · 120 kg', 'Reset between reps, no touch-and-go.'),
+            p('Front squat', '3 × 5 · RPE 7'),
+            p('Hip thrust', '3 × 10 · 85 kg'),
+          ],
+        }),
+        workout({
+          n: 4, name: 'Upper B', subtitle: '4 exercises · not started', state: 'To do', tone: 'grey', planOnly: true,
+          exercises: [
+            p('Incline dumbbell press', '3 × 10 · 24 kg'),
+            p('Seated cable row', '3 × 12 · RPE 8'),
+            p('Lateral raise', '3 × 15 · RPE 8'),
+            p('Face pull', '3 × 15', '', 'Face pull demo'),
+          ],
+        }),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
