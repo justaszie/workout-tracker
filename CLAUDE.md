@@ -60,8 +60,15 @@ DATABASE_URL=... APP_PASSWORD=... npm start   # production; serves dist/ on all 
 - The client app's endpoints are `GET /api/clients/:id/current-week`, which is the week plus its `coach`, and `PUT /api/clients/:id/weeks/:weekId/progress`. The progress body is the JSON from `progressJson` in `WeekJson.kt`, with exercise logs keyed by the ids from the published week. The device is the source of truth for the week it has: on refresh its input wins over the server's copy, and a server copy is only used when the device has none, as after a reinstall.
 - Routing is a few lines in `src/router.tsx`, not a library. Colours in `src/styles.css` match `ui/theme/Color.kt`.
 
+## Design system
+
+The coach web app's design system, "Workout Coach", lives in Claude as a Design System artifact: https://claude.ai/artifact/GqLKfrxyAhFy3Vddp5PJHg. Designs for this repo are made in Claude against it. It was first synced from `web/src/components/` to a standalone Claude Design (claude.ai/design) project, and has since moved to Claude; the standalone project is retired, and standalone Claude Design closes by December 14, 2026.
+
+- `/design-sync` can't send updates to a design system in Claude yet; it stops at its first check. Until it can, the design system in Claude doesn't pick up changes to `web/src/components/` by itself, so mention any component change that should reach it.
+- `web/.design-sync/` keeps the sync setup (config, previews, conventions). `projectId` in its `config.json` still names the old standalone project; keep it, since the sync tooling uses it to find the moved design system.
+
 ## Design handoffs
-When you receive a Claude Design handoff or a design export:
+When you receive a design from Claude (a Design artifact) or a design export:
 1. Save it to `design/YYYY-MM-DD-<short-feature-slug>/` before implementing anything.
 2. Never overwrite or edit an existing folder in `design/`. Those are historical records.
 3. Add a `README.md` in the folder: what the design covers, which app(s), and which

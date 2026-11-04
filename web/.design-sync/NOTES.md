@@ -1,6 +1,8 @@
 # design-sync notes
 
-- Synced to the Claude Design project "Workout Coach" (`projectId` in config.json). The first sync was on 2026-11-04: 33 components, all with authored previews graded good.
+- The design system is the "Workout Coach" Design System artifact in Claude: https://claude.ai/artifact/GqLKfrxyAhFy3Vddp5PJHg. Designs for this repo are made in Claude against it.
+- It was first synced on 2026-11-04 to the standalone Claude Design project "Workout Coach" (`projectId` in config.json): 33 components, all with authored previews graded good. That project has since moved to Claude and is retired; standalone Claude Design closes by December 14, 2026.
+- `/design-sync` can't send updates to a design system in Claude yet. Asked about `projectId`, the server reports `moveState: "moved"`, and the sync stops before building or uploading. Keep `projectId`: it is how the tooling finds the moved design system. Until syncing to Claude is supported, component changes don't reach the design system automatically.
 - The library is `src/components/` (exported from `src/components/index.ts`); the screens are built from it. There is no Storybook; shape is `package`.
 - The app emits no `.d.ts`. `buildCmd` (`npx tsc -p .design-sync/tsconfig.types.json`) writes them to `dist/types/`, and `package.json` `types` points there so the converter finds the entry. **`npm run build` (vite) empties `dist/`, so run `buildCmd` after any vite build and before the converter.**
 - Converter command, from `web/`: `node .ds-sync/package-build.mjs --config .design-sync/config.json --node-modules ./node_modules --entry ./src/components/index.ts --out ./ds-bundle` (or `resync.mjs` with the same args).
