@@ -1,0 +1,98 @@
+{
+  "projectId": "9d4a1149-9212-4661-8f84-881c8c9d4dc1",
+  "pkg": "workout-coach",
+  "globalName": "WorkoutCoach",
+  "shape": "package",
+  "srcDir": "src/components",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": "src/styles.css",
+  "buildCmd": "npx tsc -p .design-sync/tsconfig.types.json",
+  "docsMap": {
+    "Button": ".design-sync/groups/Actions.md",
+    "IconButton": ".design-sync/groups/Actions.md",
+    "TextLink": ".design-sync/groups/Actions.md",
+    "Link": ".design-sync/groups/Actions.md",
+    "TextField": ".design-sync/groups/Forms.md",
+    "SearchField": ".design-sync/groups/Forms.md",
+    "Input": ".design-sync/groups/Forms.md",
+    "SegmentedControl": ".design-sync/groups/Forms.md",
+    "FilterGroup": ".design-sync/groups/Forms.md",
+    "Chip": ".design-sync/groups/Status.md",
+    "Chips": ".design-sync/groups/Status.md",
+    "LinkChip": ".design-sync/groups/Status.md",
+    "Avatar": ".design-sync/groups/Status.md",
+    "NumberBadge": ".design-sync/groups/Status.md",
+    "ProgressBar": ".design-sync/groups/Status.md",
+    "AppShell": ".design-sync/groups/Layout.md",
+    "NavRail": ".design-sync/groups/Layout.md",
+    "PageHeader": ".design-sync/groups/Layout.md",
+    "Breadcrumbs": ".design-sync/groups/Layout.md",
+    "Card": ".design-sync/groups/Layout.md",
+    "ListRow": ".design-sync/groups/Layout.md",
+    "Banner": ".design-sync/groups/Feedback.md",
+    "Callout": ".design-sync/groups/Feedback.md",
+    "NoteCard": ".design-sync/groups/Feedback.md",
+    "ErrorList": ".design-sync/groups/Feedback.md",
+    "FlagList": ".design-sync/groups/Feedback.md",
+    "FlagItem": ".design-sync/groups/Feedback.md",
+    "Dialog": ".design-sync/groups/Feedback.md",
+    "Table": ".design-sync/groups/Data.md",
+    "TableRow": ".design-sync/groups/Data.md",
+    "TableCell": ".design-sync/groups/Data.md",
+    "Icon": ".design-sync/groups/Icons.md",
+    "GripIcon": ".design-sync/groups/Icons.md"
+  },
+  "overrides": {
+    "AppShell": {
+      "cardMode": "single",
+      "viewport": "1200x640"
+    },
+    "Dialog": {
+      "cardMode": "single",
+      "viewport": "640x420"
+    },
+    "Table": {
+      "cardMode": "column"
+    },
+    "TableRow": {
+      "cardMode": "column"
+    },
+    "TableCell": {
+      "cardMode": "column"
+    },
+    "PageHeader": {
+      "cardMode": "column"
+    },
+    "Banner": {
+      "cardMode": "column"
+    },
+    "Breadcrumbs": {
+      "cardMode": "column"
+    },
+    "Callout": {
+      "cardMode": "column"
+    },
+    "Input": {
+      "cardMode": "column"
+    },
+    "TextField": {
+      "cardMode": "column"
+    },
+    "Icon": {
+      "cardMode": "column"
+    },
+    "Card": {
+      "cardMode": "column"
+    },
+    "NoteCard": {
+      "cardMode": "column"
+    },
+    "ErrorList": {
+      "cardMode": "column"
+    },
+    "ListRow": {
+      "cardMode": "column"
+    }
+  },
+  "readmeHeader": ".design-sync/conventions.md"
+}
