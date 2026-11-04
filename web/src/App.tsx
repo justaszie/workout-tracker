@@ -4,6 +4,7 @@ import { loadData } from './api.ts'
 import { AppShell, NavRail, type NavItem } from './components/index.ts'
 import { usePath } from './router.tsx'
 import { Clients } from './screens/Clients.tsx'
+import { History } from './screens/History.tsx'
 import { PlanWeek } from './screens/PlanWeek.tsx'
 import { Review } from './screens/Review.tsx'
 
@@ -29,13 +30,14 @@ export function App() {
     return () => removeEventListener('focus', refresh)
   }, [refresh])
 
-  const [, clientId, plan] = /^\/clients\/([^/]+)(\/plan)?$/.exec(path) ?? []
+  const [, clientId, page, weekId] = /^\/clients\/([^/]+)(?:\/(plan|history|weeks\/([^/]+)))?$/.exec(path) ?? []
   return (
     <AppShell nav={<NavRail items={NAV} />}>
       {failed && !data && <p role="alert">Couldn't reach the server. Reload to try again.</p>}
       {data && !clientId && <Clients data={data} onData={setData} />}
-      {data && clientId && !plan && <Review data={data} clientId={clientId} />}
-      {data && plan && <PlanWeek key={clientId} data={data} clientId={clientId} onData={setData} />}
+      {data && clientId && (!page || weekId) && <Review data={data} clientId={clientId} weekId={weekId} />}
+      {data && page === 'history' && <History data={data} clientId={clientId} />}
+      {data && page === 'plan' && <PlanWeek key={clientId} data={data} clientId={clientId} onData={setData} />}
     </AppShell>
   )
 }
