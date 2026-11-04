@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Client history</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/workout-coach/tokens.css">
+<link rel="stylesheet" href="ds/workout-coach/components/bundle.css">
+<script src="ds/workout-coach/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#C8102E}a:hover{color:#9E0B22}
+</style>
+</helmet>
+<div class="shell">
+<x-import component-from-global-scope="WorkoutCoach.NavRail" items="{{nav}}"></x-import>
+<main class="main">
+<div class="page">
+
+<x-import component-from-global-scope="WorkoutCoach.Breadcrumbs" items="{{crumbs}}"></x-import>
+
+<header class="page-header">
+<div class="page-title-stack">
+<x-import component-from-global-scope="WorkoutCoach.Avatar" initials="AP" name="Alex Petrauskas" large="{{yes}}"></x-import>
+<h1>Training history</h1>
+<p class="subtitle">9 weeks planned since Mon 7 Sep · 3 blocks · on Block 3 · Week 1 now</p>
+</div>
+<div class="header-actions">
+<a class="btn btn-outline" href="Week.dc.html">Open current week</a>
+</div>
+</header>
+
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+<div class="card card-padded" style="display: flex; flex-direction: column; gap: 4px">
+<p class="eyebrow">Weeks finished</p>
+<p style="font-family: var(--condensed); font-size: 40px; line-height: 48px; font-weight: 800">7 of 8</p>
+<p class="caption">Block 1 · Week 4 was never closed</p>
+</div>
+<div class="card card-padded" style="display: flex; flex-direction: column; gap: 4px">
+<p class="eyebrow">Workouts done</p>
+<p style="font-family: var(--condensed); font-size: 40px; line-height: 48px; font-weight: 800">87%</p>
+<p class="caption">27 of 31 in past weeks · 1 partly done · 3 skipped</p>
+</div>
+<div class="card card-padded" style="display: flex; flex-direction: column; gap: 4px">
+<p class="eyebrow">Back squat top set</p>
+<p style="font-family: var(--condensed); font-size: 40px; line-height: 48px; font-weight: 800">80 → 95 kg</p>
+<p class="caption">+15 kg since Block 1 · Week 1</p>
+</div>
+<div class="card card-padded" style="display: flex; flex-direction: column; gap: 4px">
+<p class="eyebrow">Off-target results</p>
+<p style="font-family: var(--condensed); font-size: 40px; line-height: 48px; font-weight: 800">8</p>
+<p class="caption">5 above target RPE · 2 missed reps · 1 under load</p>
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<x-import component-from-global-scope="WorkoutCoach.SegmentedControl" label="Block" options="{{blockOptions}}" value="{{selected}}" on-change="{{pickBlock}}"></x-import>
+<p class="muted small">Newest week first · View opens every logged set</p>
+</div>
+
+<sc-for list="{{blocks}}" as="block" hint-placeholder-count="3">
+<section aria-label="{{block.title}}" class="card clip">
+<div class="workout-head">
+<div class="grow">
+<h2>{{block.title}}</h2>
+<p class="muted small">{{block.caption}}</p>
+</div>
+<x-import component-from-global-scope="WorkoutCoach.Chip" tone="{{block.tone}}">{{block.chip}}</x-import>
+</div>
+<x-import component-from-global-scope="WorkoutCoach.Table" label="{{block.title}} weeks" columns="{{cols}}" min-width="{{minWidth}}" tinted="{{yes}}">
+<sc-for list="{{block.weeks}}" as="week" hint-placeholder-count="4">
+<x-import component-from-global-scope="WorkoutCoach.TableRow">
+<x-import component-from-global-scope="WorkoutCoach.TableCell" stack="{{yes}}">
+<span class="medium">{{week.title}}</span>
+<span class="caption">{{week.theme}}</span>
+</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="muted">{{week.dates}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell">
+<x-import component-from-global-scope="WorkoutCoach.ProgressBar" value="{{week.value}}" label="{{week.progress}}" caption="{{week.gaps}}"></x-import>
+</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell">
+<sc-if value="{{week.hasFlags}}" hint-placeholder-val="{{yes}}">
+<div class="chips">
+<sc-for list="{{week.flags}}" as="flag" hint-placeholder-count="2">
+<x-import component-from-global-scope="WorkoutCoach.Chip" tone="{{flag.tone}}">{{flag.text}}</x-import>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{week.clean}}" hint-placeholder-val="{{no}}">
+<span class="muted">All on target</span>
+</sc-if>
+</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell">
+<x-import component-from-global-scope="WorkoutCoach.Chip" tone="{{week.tone}}" icon="{{week.icon}}">{{week.status}}</x-import>
+</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" align="right">
+<a class="btn btn-outline btn-sm" href="Week.dc.html">View</a>
+</x-import>
+</x-import>
+</sc-for>
+</x-import>
+</section>
+</sc-for>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const red = (text) => ({ text, tone: 'red' });
+    const grey = (text) => ({ text, tone: 'grey' });
+    const week = (w) => ({
+      ...w,
+      hasFlags: w.flags.length > 0,
+      clean: w.flags.length === 0 && w.status !== 'In progress',
+      value: w.done / w.total,
+      progress: w.done + ' of ' + w.total + ' workouts',
+    });
+    const finished = (date) => ({ status: 'Finished ' + date, tone: 'green', icon: 'check' });
+    const blockList = [
+        {
+          id: 'b3', option: 'Block 3 · current', title: 'Block 3', caption: '1 week so far · started Mon 2 Nov', chip: 'Current block', tone: 'grey',
+          weeks: [
+            week({ title: 'Week 1', theme: 'Intensity — first heavy week', dates: 'Mon 2 – Sun 8 Nov', done: 1, total: 4, gaps: '1 in progress · 2 to do', flags: [], status: 'In progress', tone: 'grey', icon: null }),
+          ],
+        },
+        {
+          id: 'b2', option: 'Block 2', title: 'Block 2', caption: '4 weeks · Mon 5 Oct – Sat 31 Oct · 14 of 15 workouts done', chip: '4 of 4 finished', tone: 'green',
+          weeks: [
+            week({ title: 'Week 4', theme: 'Deload', dates: 'Mon 26 – Sat 31 Oct', done: 3, total: 3, gaps: '', flags: [grey('1 note')], ...finished('Sat 31 Oct') }),
+            week({ title: 'Week 3', theme: 'Volume week — last push', dates: 'Mon 19 – Sun 25 Oct', done: 3, total: 4, gaps: '1 skipped', flags: [red('2 above RPE'), red('1 missed reps'), grey('3 notes')], ...finished('Sun 25 Oct') }),
+            week({ title: 'Week 2', theme: 'Volume week', dates: 'Mon 12 – Sun 18 Oct', done: 4, total: 4, gaps: '', flags: [red('1 above RPE')], ...finished('Sun 18 Oct') }),
+            week({ title: 'Week 1', theme: 'Volume week — back in', dates: 'Mon 5 – Sat 10 Oct', done: 4, total: 4, gaps: '', flags: [], ...finished('Sat 10 Oct') }),
+          ],
+        },
+        {
+          id: 'b1', option: 'Block 1', title: 'Block 1', caption: '4 weeks · Mon 7 Sep – Sun 4 Oct · 13 of 16 workouts done', chip: '3 of 4 finished', tone: 'amber',
+          weeks: [
+            week({ title: 'Week 4', theme: 'Test week', dates: 'Mon 28 Sep – Sun 4 Oct', done: 2, total: 4, gaps: '2 never started', flags: [red('1 under planned load')], status: 'Not closed', tone: 'amber', icon: 'alert' }),
+            week({ title: 'Week 3', theme: 'Build — add a set', dates: 'Mon 21 – Sun 27 Sep', done: 3, total: 4, gaps: '1 partly done', flags: [red('2 above RPE'), grey('1 note')], ...finished('Sun 27 Sep') }),
+            week({ title: 'Week 2', theme: 'Build', dates: 'Mon 14 – Sun 20 Sep', done: 4, total: 4, gaps: '', flags: [red('1 missed reps')], ...finished('Sun 20 Sep') }),
+            week({ title: 'Week 1', theme: 'Foundations — learn the lifts', dates: 'Mon 7 – Sun 13 Sep', done: 4, total: 4, gaps: '', flags: [grey('4 notes')], ...finished('Sun 13 Sep') }),
+          ],
+        },
+    ];
+    const selected = (this.state && this.state.block) || blockList[0].id;
+    return {
+      yes: true,
+      no: false,
+      selected,
+      pickBlock: (value) => this.setState({ block: value }),
+      blockOptions: blockList.map((b) => ({ value: b.id, label: b.option })),
+      blocks: blockList.filter((b) => b.id === selected),
+      minWidth: 1000,
+      nav: [
+        { label: 'Clients', icon: 'clients', to: '/', current: true },
+        { label: 'Library', icon: 'library', disabled: true },
+        { label: 'Settings', icon: 'settings', disabled: true },
+      ],
+      crumbs: [{ label: 'Clients', to: '/' }, { label: 'Alex Petrauskas', to: '/clients/alex' }, { label: 'History' }],
+      cols: [
+        { header: 'Week', width: 'minmax(220px, 1.4fr)' },
+        { header: 'Dates', width: '170px' },
+        { header: 'Workouts', width: '190px' },
+        { header: 'Results', width: 'minmax(220px, 1.2fr)' },
+        { header: 'Status', width: '180px' },
+        { header: 'Action', width: '100px', align: 'right' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

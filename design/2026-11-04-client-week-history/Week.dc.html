@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Past week</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/workout-coach/tokens.css">
+<link rel="stylesheet" href="ds/workout-coach/components/bundle.css">
+<script src="ds/workout-coach/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#C8102E}a:hover{color:#9E0B22}
+</style>
+</helmet>
+<div class="shell">
+<x-import component-from-global-scope="WorkoutCoach.NavRail" items="{{nav}}"></x-import>
+<main class="main">
+<div class="page">
+
+<x-import component-from-global-scope="WorkoutCoach.Breadcrumbs" items="{{crumbs}}"></x-import>
+
+<nav aria-label="All weeks" class="card" style="display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; padding: 12px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 8px; padding: 0 16px; min-height: 56px; border-radius: 12px; text-decoration: none; color: #1B1B1F; font-weight: 500">
+<x-import component-from-global-scope="WorkoutCoach.Icon" name="clipboard"></x-import>
+All weeks
+</a>
+<sc-for list="{{strip}}" as="item" hint-placeholder-count="9">
+<a href="Week.dc.html" aria-current="{{item.current}}" style="{{item.style}}">
+<span style="font-family: var(--condensed); font-weight: 700; font-size: 15px; line-height: 18px">{{item.label}}</span>
+<span style="display: flex; gap: 3px" aria-hidden="true">
+<sc-for list="{{item.dots}}" as="dot" hint-placeholder-count="4">
+<span style="{{dot}}"></span>
+</sc-for>
+</span>
+</a>
+</sc-for>
+</nav>
+
+<header class="page-header">
+<div class="page-title-stack">
+<x-import component-from-global-scope="WorkoutCoach.Avatar" initials="AP" name="Alex Petrauskas" large="{{yes}}"></x-import>
+<h1>Block 2 · Week 3</h1>
+<p class="lead">Volume week — last push</p>
+<div class="chips">
+<x-import component-from-global-scope="WorkoutCoach.Chip" tone="green" icon="check">Finished Sun 25 Oct</x-import>
+<x-import component-from-global-scope="WorkoutCoach.Chip">Started Mon 19 Oct</x-import>
+<x-import component-from-global-scope="WorkoutCoach.Chip">Week 7 of 9</x-import>
+</div>
+</div>
+<div class="header-actions">
+<a class="btn btn-outline" href="Week.dc.html">Week 2</a>
+<a class="btn btn-outline btn-icon-right" href="Week.dc.html">Week 4<x-import component-from-global-scope="WorkoutCoach.Icon" name="arrow"></x-import></a>
+</div>
+</header>
+
+<x-import component-from-global-scope="WorkoutCoach.NoteCard" label="Client note for the week" eyebrow="Alex’s note when finishing the week">“Busy week at work, so I skipped Saturday’s upper session. Legs felt heavy all week.”</x-import>
+
+<div class="summary">
+<p><strong>3 of 4 workouts done</strong><span class="muted"> · 1 skipped · 10 of 14 exercises logged</span></p>
+<x-import component-from-global-scope="WorkoutCoach.Chip" tone="red">2 above target RPE</x-import>
+<x-import component-from-global-scope="WorkoutCoach.Chip" tone="red">1 with missed reps</x-import>
+<x-import component-from-global-scope="WorkoutCoach.Chip">3 exercise notes</x-import>
+</div>
+
+<sc-for list="{{workouts}}" as="workout" hint-placeholder-count="4">
+<section aria-label="{{workout.name}}" class="card clip">
+<div class="workout-head">
+<x-import component-from-global-scope="WorkoutCoach.NumberBadge">{{workout.n}}</x-import>
+<div class="grow">
+<h2>{{workout.name}}</h2>
+<p class="muted small">{{workout.subtitle}}</p>
+</div>
+<x-import component-from-global-scope="WorkoutCoach.Chip" tone="{{workout.tone}}">{{workout.state}}</x-import>
+</div>
+<sc-if value="{{workout.logged}}" hint-placeholder-val="{{yes}}">
+<x-import component-from-global-scope="WorkoutCoach.Table" label="{{workout.name}} results" columns="{{cols}}" min-width="{{minWidth}}" tinted="{{yes}}">
+<sc-for list="{{workout.exercises}}" as="ex" hint-placeholder-count="4">
+<x-import component-from-global-scope="WorkoutCoach.TableRow" align="start">
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="medium">{{ex.name}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="muted">{{ex.planned}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="{{ex.weightTone}}">{{ex.weight}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="{{ex.rpeTone}}">{{ex.rpe}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="{{ex.repsTone}}">{{ex.reps}}</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" stack="{{yes}}">
+<span class="{{ex.trendClass}}">{{ex.trend}}</span>
+<span class="caption">{{ex.before}}</span>
+</x-import>
+<x-import component-from-global-scope="WorkoutCoach.TableCell" tone="muted">{{ex.note}}</x-import>
+</x-import>
+</sc-for>
+</x-import>
+</sc-if>
+</section>
+</sc-for>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const pill = (current) =>
+      'display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; min-width: 76px; min-height: 56px; padding: 6px 10px; border-radius: 12px; text-decoration: none; ' +
+      (current ? 'background: #FFDAD9; color: #7A0016; box-shadow: inset 0 0 0 2px #C8102E;' : 'background: #F0F0F2; color: #1B1B1F;');
+    const dot = (state) =>
+      'width: 8px; height: 8px; border-radius: 4px; background: ' +
+      ({ done: '#1B1B1F', partly: '#74747A', skipped: '#C8102E', todo: '#FFFFFF', open: '#CACACE' })[state] +
+      (state === 'todo' ? '; box-shadow: inset 0 0 0 1.5px #74747A' : '');
+    const weeks = [
+      ['B1 · W1', 'dddd'], ['B1 · W2', 'dddd'], ['B1 · W3', 'dddp'], ['B1 · W4', 'ddoo'],
+      ['B2 · W1', 'dddd'], ['B2 · W2', 'dddd'], ['B2 · W3', 'ddds'], ['B2 · W4', 'ddd'], ['B3 · W1', 'dtoo'],
+    ];
+    const code = { d: 'done', p: 'partly', s: 'skipped', t: 'todo', o: 'open' };
+    const strip = weeks.map(([label, states], i) => ({
+      label,
+      current: i === 6 ? 'page' : undefined,
+      style: pill(i === 6),
+      dots: states.split('').map((c) => dot(code[c])),
+    }));
+    const ex = (e) => ({
+      weightTone: undefined, rpeTone: undefined, repsTone: undefined, note: '',
+      trendClass: e.trend && e.trend.startsWith('+') ? 'bold' : 'muted',
+      ...e,
+    });
+    return {
+      yes: true,
+      minWidth: 1040,
+      nav: [
+        { label: 'Clients', icon: 'clients', to: '/', current: true },
+        { label: 'Library', icon: 'library', disabled: true },
+        { label: 'Settings', icon: 'settings', disabled: true },
+      ],
+      crumbs: [
+        { label: 'Clients', to: '/' },
+        { label: 'Alex Petrauskas', to: '/clients/alex' },
+        { label: 'History', to: '/clients/alex/history' },
+        { label: 'Block 2 · Week 3' },
+      ],
+      strip,
+      cols: [
+        { header: 'Exercise', width: 'minmax(180px, 1.2fr)' },
+        { header: 'Planned', width: '160px' },
+        { header: 'Last set', width: '120px' },
+        { header: 'RPE', width: '110px' },
+        { header: 'Reps', width: '110px' },
+        { header: 'Vs week 2', width: '120px' },
+        { header: 'Client note', width: 'minmax(180px, 1.3fr)' },
+      ],
+      workouts: [
+        {
+          n: 1, name: 'Lower A', subtitle: 'Mon 19 Oct · 4 of 4 logged', state: 'Done', tone: 'green', logged: true,
+          exercises: [
+            ex({ name: 'Back squat', planned: '4 × 6 · 92.5 kg', weight: '92.5 kg', rpe: '9', reps: '6 · 6 · 6 · 5', repsTone: 'flagged', trend: '+2.5 kg', before: 'was 90 kg', note: 'Last set ground to a halt on rep 6.' }),
+            ex({ name: 'Romanian deadlift', planned: '3 × 8 · RPE 7', weight: '80 kg', rpe: '8 (target 7)', rpeTone: 'flagged', reps: 'All done', trend: '+5 kg', before: 'was 75 kg at RPE 7' }),
+            ex({ name: 'Bulgarian split squat', planned: '3 × 10 per side · 20 kg', weight: '20 kg', rpe: '8', reps: 'All done', trend: 'Same', before: '20 kg' }),
+            ex({ name: 'Standing calf raise', planned: '3 × 12 · RPE 8', weight: '40 kg', rpe: '8 (target 8)', reps: 'All done', trend: '+5 kg', before: 'was 35 kg' }),
+          ],
+        },
+        {
+          n: 2, name: 'Upper A', subtitle: 'Tue 20 Oct · 3 of 3 logged', state: 'Done', tone: 'green', logged: true,
+          exercises: [
+            ex({ name: 'Bench press', planned: '4 × 6 · 70 kg', weight: '72.5 kg (+2.5)', weightTone: 'bold', rpe: '8', reps: 'All done', trend: '+5 kg', before: 'was 67.5 kg', note: 'Felt fast, went up a step.' }),
+            ex({ name: 'Pull-up', planned: '4 × 6 · RPE 8', weight: '—', rpe: '9 (target 8)', rpeTone: 'flagged', reps: 'All done', trend: 'RPE +1', before: 'was RPE 8', note: 'Grip went on the last set.' }),
+            ex({ name: 'Overhead press', planned: '3 × 8 · 45 kg', weight: '45 kg', rpe: '8', reps: 'All done', trend: 'Same', before: '45 kg' }),
+          ],
+        },
+        {
+          n: 3, name: 'Lower B', subtitle: 'Thu 22 Oct · 3 of 3 logged', state: 'Done', tone: 'green', logged: true,
+          exercises: [
+            ex({ name: 'Deadlift', planned: '3 × 5 · 110 kg', weight: '110 kg', rpe: '8', reps: 'All done', trend: '+5 kg', before: 'was 105 kg' }),
+            ex({ name: 'Front squat', planned: '3 × 6 · RPE 7', weight: '65 kg', rpe: '7 (target 7)', reps: 'All done', trend: '+2.5 kg', before: 'was 62.5 kg' }),
+            ex({ name: 'Hip thrust', planned: '3 × 10 · 80 kg', weight: '80 kg', rpe: '7', reps: 'All done', trend: 'Same', before: '80 kg' }),
+          ],
+        },
+        {
+          n: 4, name: 'Upper B', subtitle: '4 exercises · nothing logged', state: 'Skipped', tone: 'red', logged: false,
+          exercises: [],
+        },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
