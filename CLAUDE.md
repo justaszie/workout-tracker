@@ -59,3 +59,11 @@ DATABASE_URL=... APP_PASSWORD=... npm start   # production; serves dist/ on all 
 - The plan builder saves its fields as typed (`PlanForm`), so drafts can be incomplete. `shared/plan.ts` validates them and converts them to a `Week` on publish.
 - The client app's endpoints are `GET /api/clients/:id/current-week`, which is the week plus its `coach`, and `PUT /api/clients/:id/weeks/:weekId/progress`. The progress body is the JSON from `progressJson` in `WeekJson.kt`, with exercise logs keyed by the ids from the published week. The device is the source of truth for the week it has: on refresh its input wins over the server's copy, and a server copy is only used when the device has none, as after a reinstall.
 - Routing is a few lines in `src/router.tsx`, not a library. Colours in `src/styles.css` match `ui/theme/Color.kt`.
+
+## Design handoffs
+When you receive a Claude Design handoff or a design export:
+1. Save it to `design/YYYY-MM-DD-<short-feature-slug>/` before implementing anything.
+2. Never overwrite or edit an existing folder in `design/`. Those are historical records.
+3. Add a `README.md` in the folder: what the design covers, which app(s), and which
+   screens are in scope.
+4. Commit the design folder on its own, before any implementation commits.
