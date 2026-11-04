@@ -213,6 +213,7 @@ export function weekSummary(week: Week) {
     logged: exercises.filter((exercise) => exercise.log).length,
     aboveRpe: exercises.filter(aboveTargetRpe).length,
     missedReps: exercises.filter(missedReps).length,
+    underLoad: exercises.filter((exercise) => (loadDifference(exercise) ?? 0) < 0).length,
     notes: exercises.filter((exercise) => exercise.log?.note).length,
   }
 }
@@ -223,6 +224,104 @@ export function gapsText(summary: ReturnType<typeof weekSummary>): string {
     summary.partly && `${summary.partly} partly done`,
     summary.skipped && `${summary.skipped} skipped`,
   ].filter(Boolean).join(' · ')
+}
+
+// History
+
+const addDays = (date: string, days: number) => {
+  const parsed = parseDate(date)
+  parsed.setDate(parsed.getDate() + days)
+  return toDateString(parsed)
+}
+
+/** 'Mon 5 – Sat 10 Oct', or 'Mon 28 Sep – Sun 4 Oct' across months. Open weeks run a full seven days. */
+export function weekDates(week: Week): string {
+  const end = week.finishedOn ?? addDays(week.startedOn, 6)
+  const [startDay, , startMonth] = formatDate(week.startedOn).split(' ')
+  const [endDay, endDate, endMonth] = formatDate(end).split(' ')
+  const from = startMonth === endMonth ? startDay + ' ' + parseDate(week.startedOn).getDate() : formatDate(week.startedOn)
+  return `${from} – ${endDay} ${endDate} ${endMonth}`
+}
+
+/** 'Week 3' within the same block as [from], 'Block 1 · Week 4' otherwise. */
+export const relativeWeekTitle = (week: Week, from: Week) =>
+  week.block === from.block ? `Week ${week.number}` : weekTitle(week)
+
+/** 'B2 · W3' */
+export const shortWeekTitle = (week: Week) => `B${week.block} · W${week.number}`
+
+/** Every week except the one the client is still training. */
+export const pastWeeks = (client: Client) =>
+  client.weeks.filter((week) => week.finishedOn || week !== currentWeek(client))
+
+export interface Block {
+  number: number
+  /** Oldest first. */
+  weeks: Week[]
+}
+
+/** The client's weeks grouped by block, newest block first. */
+export function blocksOf(client: Client): Block[] {
+  const blocks: Block[] = []
+  for (const week of client.weeks) {
+    const block = blocks.find((it) => it.number === week.block)
+    if (block) block.weeks.push(week)
+    else blocks.push({ number: week.block, weeks: [week] })
+  }
+  return blocks.reverse()
+}
+
+export interface LiftTrend {
+  name: string
+  first: { kg: number; week: Week }
+  last: { kg: number; week: Week }
+}
+
+/** The weighted lift logged in the most weeks, from its first logged weight to its latest. */
+export function liftTrend(client: Client): LiftTrend | null {
+  const logged = new Map<string, { kg: number; week: Week }[]>()
+  for (const week of client.weeks) {
+    for (const exercise of week.workouts.flatMap((workout) => workout.exercises)) {
+      const kg = exercise.log?.weightKg
+      if (kg == null) continue
+      const entries = logged.get(exercise.name) ?? []
+      // One entry per week, keeping the first time the lift appears in it.
+      if (entries.at(-1)?.week !== week) entries.push({ kg, week })
+      logged.set(exercise.name, entries)
+    }
+  }
+  let most: { kg: number; week: Week }[] = []
+  let name = ''
+  for (const [lift, entries] of logged) {
+    if (entries.length > most.length) [name, most] = [lift, entries]
+  }
+  return most.length ? { name, first: most[0], last: most[most.length - 1] } : null
+}
+
+export interface Comparison {
+  /** '+2.5 kg', 'RPE +1' or 'Same'. */
+  change: string
+  /** What it was the week before: 'was 90 kg', 'was RPE 8', or the unchanged value. */
+  before: string
+  up: boolean
+}
+
+/** How [exercise] went against the same exercise, by name, in [previous]. */
+export function compareWithWeek(exercise: Exercise, previous: Week | undefined): Comparison | null {
+  const now = exercise.log
+  const then = previous?.workouts
+    .flatMap((workout) => workout.exercises)
+    .find((it) => it.name === exercise.name && it.log)?.log
+  if (!now || !then) return null
+  const signed = (n: number) => `${n > 0 ? '+' : '−'}${formatKg(Math.abs(n))}`
+  if (now.weightKg != null && then.weightKg != null && now.weightKg !== then.weightKg) {
+    const difference = now.weightKg - then.weightKg
+    return { change: `${signed(difference)} kg`, before: `was ${formatKg(then.weightKg)} kg`, up: difference > 0 }
+  }
+  if (now.rpe !== then.rpe) {
+    return { change: `RPE ${signed(now.rpe - then.rpe)}`, before: `was RPE ${then.rpe}`, up: false }
+  }
+  return { change: 'Same', before: then.weightKg != null ? `${formatKg(then.weightKg)} kg` : `RPE ${then.rpe}`, up: false }
 }
 
 // Client status

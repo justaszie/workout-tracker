@@ -1,12 +1,14 @@
 import {
-  aboveTargetRpe, currentWeek, firstName, formatDate, formatKg, loadDifference, loggedCount,
-  missedReps, nextWeekTitle, plannedText, repsText, safeUrl, weekSummary, weekTitle, workoutState,
+  aboveTargetRpe, compareWithWeek, currentWeek, firstName, formatDate, formatKg, loadDifference, loggedCount,
+  missedReps, nextWeekTitle, plannedText, relativeWeekTitle, repsText, safeUrl, shortWeekTitle, weekSummary,
+  weekTitle, workoutState,
   type Client, type Data, type Exercise, type Week, type Workout, type WorkoutState,
 } from '../../shared/model.ts'
 import {
-  Avatar, Breadcrumbs, Button, Card, Chip, Chips, Link, LinkChip, NoteCard, NumberBadge, PageHeader,
+  Avatar, Breadcrumbs, Button, Card, Chip, Chips, Icon, Link, LinkChip, NoteCard, NumberBadge, PageHeader,
   Table, TableCell, TableRow, type ChipProps, type Column,
 } from '../components/index.ts'
+import { weekPath } from './History.tsx'
 
 const stateChip: Record<WorkoutState, { label: string; tone: ChipProps['tone'] }> = {
   done: { label: 'Done', tone: 'green' },
@@ -16,14 +18,54 @@ const stateChip: Record<WorkoutState, { label: string; tone: ChipProps['tone'] }
   todo: { label: 'To do', tone: 'grey' },
 }
 
-const COLUMNS: Column[] = [
-  { header: 'Exercise', width: 'minmax(190px, 1.3fr)' },
-  { header: 'Planned', width: '170px' },
-  { header: 'Last set', width: '130px' },
-  { header: 'RPE', width: '120px' },
-  { header: 'Reps', width: '120px' },
-  { header: 'Client note', width: 'minmax(200px, 1.4fr)' },
+const columns = (previous: Week | undefined, week: Week): Column[] => [
+  { header: 'Exercise', width: 'minmax(180px, 1.2fr)' },
+  { header: 'Planned', width: '160px' },
+  { header: 'Last set', width: '120px' },
+  { header: 'RPE', width: '110px' },
+  { header: 'Reps', width: '110px' },
+  ...previous ? [{ header: `Vs ${relativeWeekTitle(previous, week).toLowerCase()}`, width: '120px' }] : [],
+  { header: 'Client note', width: 'minmax(180px, 1.3fr)' },
 ]
+
+/** Dot shades in the week strip, one per workout. */
+const dotClass: Record<WorkoutState, string> = {
+  done: 'dot-done',
+  partly: 'dot-partly',
+  skipped: 'dot-skipped',
+  started: 'dot-started',
+  todo: 'dot-todo',
+}
+
+const stateWords: Record<WorkoutState, string> = {
+  done: 'done', partly: 'partly done', skipped: 'skipped', started: 'in progress', todo: 'to do',
+}
+
+function WeekStrip({ client, week }: { client: Client; week: Week }) {
+  return (
+    <nav aria-label="All weeks" className="card week-strip">
+      <Link to={`/clients/${client.id}/history`} className="week-strip-all">
+        <Icon name="clipboard" />All weeks
+      </Link>
+      {client.weeks.map((it) => {
+        const states = it.workouts.map((workout) => workoutState(it, workout))
+        const described = states.map((state, i) => `${it.workouts[i].name} ${stateWords[state]}`).join(', ')
+        return (
+          <Link
+            key={it.id} to={weekPath(client, it)} className="week-pill"
+            aria-current={it === week ? 'page' : undefined}
+            aria-label={`${weekTitle(it)}: ${described}`}
+          >
+            <span className="week-pill-label">{shortWeekTitle(it)}</span>
+            <span className="week-pill-dots" aria-hidden="true">
+              {states.map((state, i) => <span key={i} className={`dot ${dotClass[state]}`} />)}
+            </span>
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
 
 function workoutSubtitle(week: Week, workout: Workout) {
   const logged = loggedCount(workout)
@@ -41,8 +83,19 @@ function weightText(exercise: Exercise) {
   return `${formatKg(weight)} kg (${difference > 0 ? '+' : '−'}${formatKg(Math.abs(difference))})`
 }
 
-function ResultRow({ exercise }: { exercise: Exercise }) {
+function ResultRow({ exercise, previous }: { exercise: Exercise; previous: Week | undefined }) {
   const { load, log } = exercise
+  const comparison = compareWithWeek(exercise, previous)
+  const versus = previous && (
+    <TableCell stack>
+      {comparison ? (
+        <>
+          <span className={comparison.up ? 'bold' : 'muted'}>{comparison.change}</span>
+          <span className="caption">{comparison.before}</span>
+        </>
+      ) : <span className="muted">—</span>}
+    </TableCell>
+  )
   return (
     <TableRow align="start">
       <TableCell tone="medium">{exercise.name}</TableCell>
@@ -56,6 +109,7 @@ function ResultRow({ exercise }: { exercise: Exercise }) {
           <TableCell tone={missedReps(exercise) ? 'flagged' : undefined}>
             {missedReps(exercise) ? repsText(log) : 'All done'}
           </TableCell>
+          {versus}
           <TableCell tone="muted">{log.note}</TableCell>
         </>
       ) : (
@@ -63,6 +117,7 @@ function ResultRow({ exercise }: { exercise: Exercise }) {
           <TableCell tone="muted">Not logged</TableCell>
           <TableCell tone="muted">—</TableCell>
           <TableCell tone="muted">—</TableCell>
+          {versus}
           <TableCell />
         </>
       )}
@@ -70,7 +125,7 @@ function ResultRow({ exercise }: { exercise: Exercise }) {
   )
 }
 
-function WorkoutCard({ week, workout, n }: { week: Week; workout: Workout; n: number }) {
+function WorkoutCard({ week, previous, workout, n }: { week: Week; previous: Week | undefined; workout: Workout; n: number }) {
   const chip = stateChip[workoutState(week, workout)]
   const album = safeUrl(workout.albumLink)
   const logged = loggedCount(workout) > 0
@@ -86,8 +141,8 @@ function WorkoutCard({ week, workout, n }: { week: Week; workout: Workout; n: nu
         <Chip tone={chip.tone}>{chip.label}</Chip>
       </div>
       {logged && (
-        <Table label={`${workout.name} results`} columns={COLUMNS} minWidth={880} tinted>
-          {workout.exercises.map((exercise) => <ResultRow key={exercise.id} exercise={exercise} />)}
+        <Table label={`${workout.name} results`} columns={columns(previous, week)} minWidth={previous ? 1040 : 880} tinted>
+          {workout.exercises.map((exercise) => <ResultRow key={exercise.id} exercise={exercise} previous={previous} />)}
         </Table>
       )}
     </Card>
@@ -97,6 +152,10 @@ function WorkoutCard({ week, workout, n }: { week: Week; workout: Workout; n: nu
 function WeekResults({ client, week }: { client: Client; week: Week }) {
   const summary = weekSummary(week)
   const title = weekTitle(week)
+  const index = client.weeks.indexOf(week)
+  const previous = client.weeks[index - 1]
+  const next = client.weeks[index + 1]
+  const isCurrent = week === currentWeek(client)
   const rest = [
     summary.partly && `${summary.partly} partly done`,
     summary.skipped && `${summary.skipped} skipped`,
@@ -107,21 +166,46 @@ function WeekResults({ client, week }: { client: Client; week: Week }) {
 
   return (
     <>
-      <Breadcrumbs items={[{ label: 'Clients', to: '/' }, { label: client.name }, { label: title }]} />
+      <Breadcrumbs items={[
+        { label: 'Clients', to: '/' },
+        { label: client.name, to: isCurrent ? undefined : `/clients/${client.id}` },
+        { label: 'History', to: `/clients/${client.id}/history` },
+        { label: title },
+      ]} />
+
+      <WeekStrip client={client} week={week} />
 
       <PageHeader
         title={title}
         leading={<Avatar initials={client.initials} name={client.name} large />}
-        actions={week.finishedOn && (
-          <Button to={`/clients/${client.id}/plan`} icon="arrow" iconPosition="right">
-            Plan {nextWeekTitle(week)}
-          </Button>
+        actions={(previous || next || (isCurrent && week.finishedOn)) && (
+          <>
+            {previous && (
+              <Button to={weekPath(client, previous)} variant="outline" aria-label={`Previous: ${weekTitle(previous)}`}>
+                {relativeWeekTitle(previous, week)}
+              </Button>
+            )}
+            {next && (
+              <Button
+                to={weekPath(client, next)} variant="outline" icon="arrow" iconPosition="right"
+                aria-label={`Next: ${weekTitle(next)}`}
+              >
+                {relativeWeekTitle(next, week)}
+              </Button>
+            )}
+            {isCurrent && week.finishedOn && (
+              <Button to={`/clients/${client.id}/plan`} icon="arrow" iconPosition="right">
+                Plan {nextWeekTitle(week)}
+              </Button>
+            )}
+          </>
         )}
       >
         {week.theme && <p className="lead">{week.theme}</p>}
         <Chips>
           {week.finishedOn && <Chip tone="green" icon="check">Finished {formatDate(week.finishedOn)}</Chip>}
           <Chip>Started {formatDate(week.startedOn)}</Chip>
+          {client.weeks.length > 1 && <Chip>Week {index + 1} of {client.weeks.length}</Chip>}
         </Chips>
       </PageHeader>
 
@@ -136,22 +220,23 @@ function WeekResults({ client, week }: { client: Client; week: Week }) {
           <strong>{summary.done} of {summary.total} workouts done</strong>
           <span className="muted"> · {rest}</span>
         </p>
-        {summary.aboveRpe > 0 && <Chip tone="red">{summary.aboveRpe} above target RPE</Chip>}
-        {summary.missedReps > 0 && <Chip tone="red">{summary.missedReps} with missed reps</Chip>}
-        {summary.notes > 0 && <Chip>{summary.notes} exercise {summary.notes === 1 ? 'note' : 'notes'}</Chip>}
       </div>
 
       {week.workouts.map((workout, i) => (
-        <WorkoutCard key={workout.id} week={week} workout={workout} n={i + 1} />
+        <WorkoutCard key={workout.id} week={week} previous={previous} workout={workout} n={i + 1} />
       ))}
     </>
   )
 }
 
-export function Review({ data, clientId }: { data: Data; clientId: string }) {
+/** One week's results: the current week, or the week with [weekId] when given. */
+export function Review({ data, clientId, weekId }: { data: Data; clientId: string; weekId?: string }) {
   const client = data.clients.find((it) => it.id === clientId)
   if (!client) return <p>No such client. <Link to="/">Back to clients</Link></p>
-  const week = currentWeek(client)
+  const week = weekId ? client.weeks.find((it) => it.id === weekId) : currentWeek(client)
+  if (weekId && !week) {
+    return <p>No such week. <Link to={`/clients/${client.id}/history`}>Back to {firstName(client.name)}'s history</Link></p>
+  }
   if (!week) {
     return <p>{client.name} has no program yet. <Link to={`/clients/${client.id}/plan`}>Plan first week</Link></p>
   }

@@ -114,6 +114,50 @@ function alexWeek(): Week {
   })
 }
 
+/** Alex's earlier weeks, a week apart and finished, so the history screens have something to show. */
+function alexHistory(): Week[] {
+  const plans: [block: number, number: number, theme: string, squat: number, bench: number][] = [
+    [1, 1, 'Foundations — learn the lifts', 80, 60],
+    [1, 2, 'Build', 85, 62.5],
+    [1, 3, 'Build — add a set', 87.5, 65],
+    [1, 4, 'Test week', 90, 65],
+    [2, 1, 'Volume week — back in', 92.5, 67.5],
+    [2, 2, 'Volume week', 95, 70],
+  ]
+  return plans.map(([block, number, theme, squat, bench], i) => {
+    const started = 7 * (plans.length - i) + 5
+    const day = (offset: number) => dayOffset(started - offset)
+    const lastSquat = i === 3 ? log(squat, 9, [5, 5, 5, 4], 'Last rep would not go') : log(squat, 8, all(4, 5))
+    const pullUpRpe = i === 2 || i === 5 ? 9 : 8
+    const skipped = i === 3
+    return week({
+      block, number, theme,
+      startedOn: day(0),
+      finishedOn: day(6),
+      lastActivityOn: day(6),
+      note: i === 3 ? 'Work trip at the end of the week, so Lower B did not happen.' : '',
+      workouts: [
+        workout('Lower A', [
+          exercise('Back squat', 4, 5, fixed(squat), lastSquat),
+          exercise('Romanian deadlift', 3, 8, rpe(7), log(70 + i * 2.5, 7, all(3, 8))),
+        ], day(0)),
+        workout('Upper A', [
+          exercise('Bench press', 4, 6, fixed(bench), log(bench, 8, all(4, 6))),
+          exercise('Pull-up', 4, 6, rpe(8), log(null, pullUpRpe, all(4, 6), pullUpRpe > 8 ? 'Grip went on the last set' : '')),
+        ], day(1)),
+        workout('Lower B', [
+          exercise('Deadlift', 3, 5, fixed(100 + i * 2.5), skipped ? null : log(100 + i * 2.5, 8, all(3, 5))),
+          exercise('Front squat', 3, 6, rpe(7), skipped ? null : log(60 + i * 2.5, 7, all(3, 6))),
+        ], skipped ? null : day(3)),
+        workout('Upper B', [
+          exercise('Overhead press', 3, 8, fixed(40 + i), log(40 + i, 8, all(3, 8))),
+          exercise('Chest-supported row', 3, 12, fixed(22), i === 1 ? null : log(22, 7, all(3, 12))),
+        ], i === 1 ? null : day(4)),
+      ],
+    })
+  })
+}
+
 export function demoSeed(): Data {
   const ruta = shortWeek(1, 4, 'Test week', 6, 4, 4)
   ruta.finishedOn = ruta.lastActivityOn = dayOffset(1)
@@ -124,7 +168,7 @@ export function demoSeed(): Data {
   return {
     coach,
     clients: [
-      client('Alex Petrauskas', 60, [alexWeek()]),
+      client('Alex Petrauskas', 60, [...alexHistory(), alexWeek()]),
       client('Rūta Jonaitė', 30, [ruta]),
       client('Lukas Stankevičius', 1),
       client('Tomas Kazlauskas', 90, [tomas]),

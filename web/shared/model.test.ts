@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  clientStatus, formatDate, lastActivityText, loadDifference, missedReps, plannedText, safeUrl,
+  blocksOf, clientStatus, compareWithWeek, formatDate, liftTrend, pastWeeks, weekDates, lastActivityText, loadDifference, missedReps, plannedText, safeUrl,
   statusLabel, waitingText, weekSummary, workoutState,
   type Client, type Exercise, type Week, type Workout,
 } from './model.ts'
@@ -154,5 +154,50 @@ describe('planning', () => {
     const errors = planErrors(form)
     assert.equal(errors.length, 4)
     assert.match(errors[0], /Week title/)
+  })
+})
+
+describe('history', () => {
+  it('shows week dates within a month and across months', () => {
+    assert.equal(weekDates(week({ startedOn: '2026-10-05', finishedOn: '2026-10-10' })), 'Mon 5 – Sat 10 Oct')
+    assert.equal(weekDates(week({ startedOn: '2026-10-26', finishedOn: null })), 'Mon 26 Oct – Sun 1 Nov')
+  })
+
+  it('groups weeks into blocks, newest first', () => {
+    const weeks = [week({ id: 'a', block: 1 }), week({ id: 'b', block: 1 }), week({ id: 'c', block: 2 })]
+    assert.deepEqual(
+      blocksOf(client(weeks)).map((block) => [block.number, block.weeks.map((it) => it.id)]),
+      [[2, ['c']], [1, ['a', 'b']]],
+    )
+  })
+
+  it('leaves the week still being trained out of past weeks', () => {
+    const done = week({ id: 'a', finishedOn: today })
+    const open = week({ id: 'b' })
+    assert.deepEqual(pastWeeks(client([done, open])).map((it) => it.id), ['a'])
+    assert.deepEqual(pastWeeks(client([open, done])).map((it) => it.id), ['b', 'a'])
+  })
+
+  it('follows the lift logged in the most weeks', () => {
+    const lifted = (name: string, kg: number) => workout({ exercises: [exercise({ name, log: log(undefined, 8, kg) })] })
+    const weeks = [
+      week({ id: 'a', workouts: [lifted('Squat', 80), lifted('Bench', 60)] }),
+      week({ id: 'b', workouts: [lifted('Squat', 90)] }),
+    ]
+    const trend = liftTrend(client(weeks))
+    assert.equal(trend?.name, 'Squat')
+    assert.deepEqual([trend?.first.kg, trend?.last.kg], [80, 90])
+    assert.equal(liftTrend(client([week()])), null)
+  })
+
+  it('compares an exercise with the same one the week before', () => {
+    const previous = (weightKg: number | null, rpe = 8) =>
+      week({ workouts: [workout({ exercises: [exercise({ log: log(undefined, rpe, weightKg) })] })] })
+    const now = exercise({ log: log(undefined, 9, 52.5) })
+    assert.deepEqual(compareWithWeek(now, previous(50)), { change: '+2.5 kg', before: 'was 50 kg', up: true })
+    assert.deepEqual(compareWithWeek(now, previous(52.5, 8)), { change: 'RPE +1', before: 'was RPE 8', up: false })
+    assert.deepEqual(compareWithWeek(now, previous(52.5, 9)), { change: 'Same', before: '52.5 kg', up: false })
+    assert.equal(compareWithWeek(now, undefined), null)
+    assert.equal(compareWithWeek(exercise(), previous(50)), null)
   })
 })
