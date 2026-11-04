@@ -1,14 +1,17 @@
-import { useState, type DragEvent } from 'react'
+import { useMemo, useState, type DragEvent } from 'react'
 import {
-  aboveTargetRpe, currentWeek, firstName, formatKg, gapsText, loadDifference, missedReps,
+  aboveTargetRpe, currentWeek, firstName, formatDate, formatKg, gapsText, loadDifference, missedReps,
   repsText, weekSummary, weekTitle,
   type Client, type Data, type Exercise, type PlanExercise, type PlanForm, type PlanWorkout, type Week,
 } from '../../shared/model.ts'
-import { blankExercise, blankPlan, blankWorkout, copyWeek, duplicateWorkout } from '../../shared/plan.ts'
-import { ApiError, publishWeek, saveDraft } from '../api.ts'
 import {
-  Breadcrumbs, Button, Callout, Card, ErrorList, FlagItem, FlagList, GripIcon, IconButton, Input, Link,
-  ListRow, NumberBadge, PageHeader, SegmentedControl, TextField, TextLink, type IconName, type Option,
+  blankExercise, blankPlan, blankWorkout, copyWeek, duplicateWorkout, isFinished, planChanges, toPlanForm,
+  type PlanChange,
+} from '../../shared/plan.ts'
+import { ApiError, editWeek, publishWeek, saveDraft } from '../api.ts'
+import {
+  Breadcrumbs, Button, Callout, Card, Chip, Dialog, ErrorList, FlagItem, FlagList, GripIcon, IconButton, Input,
+  Link, ListRow, NumberBadge, PageHeader, SegmentedControl, TextField, TextLink, type IconName, type Option,
 } from '../components/index.ts'
 import { navigate } from '../router.tsx'
 
@@ -30,13 +33,15 @@ function move<T>(list: T[], from: number, to: number) {
 interface ExerciseRowProps {
   exercise: PlanExercise
   n: number
+  /** Logged by the client, so only its note and link can change. */
+  locked: boolean
   onChange: (patch: Partial<PlanExercise>) => void
   onRemove: () => void
   onDragStart: (event: DragEvent) => void
   onDrop: () => void
 }
 
-function ExerciseRow({ exercise, n, onChange, onRemove, onDragStart, onDrop }: ExerciseRowProps) {
+function ExerciseRow({ exercise, n, locked, onChange, onRemove, onDragStart, onDrop }: ExerciseRowProps) {
   return (
     <div
       className="exercise"
@@ -46,35 +51,35 @@ function ExerciseRow({ exercise, n, onChange, onRemove, onDragStart, onDrop }: E
       <div className="exercise-grid">
         <span className="grip" aria-hidden="true" draggable onDragStart={onDragStart}><GripIcon /></span>
         <Input
-          aria-label={`Exercise ${n} name`} placeholder="Exercise name" variant="strong"
+          aria-label={`Exercise ${n} name`} disabled={locked} placeholder="Exercise name" variant="strong"
           value={exercise.name} onChange={(e) => onChange({ name: e.target.value })}
         />
         <Input
-          aria-label={`Exercise ${n} sets`} type="number" inputMode="numeric" min="1" center
+          aria-label={`Exercise ${n} sets`} type="number" inputMode="numeric" min="1" center disabled={locked}
           value={exercise.sets} onChange={(e) => onChange({ sets: e.target.value })}
         />
         <Input
-          aria-label={`Exercise ${n} reps`} center
+          aria-label={`Exercise ${n} reps`} center disabled={locked}
           value={exercise.reps} onChange={(e) => onChange({ reps: e.target.value })}
         />
         <SegmentedControl
           label={`Exercise ${n} target type`} options={TARGET_TYPES} value={exercise.type}
-          onChange={(type) => onChange({ type: type as PlanExercise['type'] })}
+          onChange={(type) => onChange({ type: type as PlanExercise['type'] })} disabled={locked}
         />
         {exercise.type === 'kg' && (
           <Input
             aria-label={`Exercise ${n} load in kg`} type="number" inputMode="decimal" step="0.5" min="0"
-            unit="kg" value={exercise.kg} onChange={(e) => onChange({ kg: e.target.value })}
+            unit="kg" disabled={locked} value={exercise.kg} onChange={(e) => onChange({ kg: e.target.value })}
           />
         )}
         {exercise.type === 'rpe' && (
           <Input
             aria-label={`Exercise ${n} target RPE, 1 to 10`} type="number" inputMode="numeric" min="1" max="10"
-            unit="RPE" unitPosition="left" value={exercise.rpe} onChange={(e) => onChange({ rpe: e.target.value })}
+            unit="RPE" unitPosition="left" disabled={locked} value={exercise.rpe} onChange={(e) => onChange({ rpe: e.target.value })}
           />
         )}
         {exercise.type === 'none' && <span className="no-target">No target</span>}
-        <IconButton icon="trash" label={`Remove exercise ${n}`} onClick={onRemove} />
+        {locked ? <span /> : <IconButton icon="trash" label={`Remove exercise ${n}`} onClick={onRemove} />}
       </div>
       <div className="exercise-extra">
         <span />
@@ -96,13 +101,14 @@ function ExerciseRow({ exercise, n, onChange, onRemove, onDragStart, onDrop }: E
 interface WorkoutEditorProps {
   workout: PlanWorkout
   n: number
+  logged: Set<string>
   onChange: (workout: PlanWorkout) => void
   onDuplicate: () => void
   onDelete: () => void
   onCollapse: () => void
 }
 
-function WorkoutEditor({ workout, n, onChange, onDuplicate, onDelete, onCollapse }: WorkoutEditorProps) {
+function WorkoutEditor({ workout, n, logged, onChange, onDuplicate, onDelete, onCollapse }: WorkoutEditorProps) {
   const [dragging, setDragging] = useState<number | null>(null)
   const { exercises } = workout
   const count = exercises.length
@@ -126,7 +132,10 @@ function WorkoutEditor({ workout, n, onChange, onDuplicate, onDelete, onCollapse
         <span className="muted small">{count} {count === 1 ? 'exercise' : 'exercises'}</span>
         <div className="icon-row">
           <IconButton icon="copy" iconSize={22} label="Duplicate workout" onClick={onDuplicate} />
-          <IconButton icon="trash" iconSize={22} label="Delete workout" onClick={onDelete} />
+          <IconButton
+            icon="trash" iconSize={22} label="Delete workout" onClick={onDelete}
+            disabled={exercises.some((it) => logged.has(it.id))}
+          />
           <IconButton icon="collapse" iconSize={22} label="Collapse workout" aria-expanded="true" onClick={onCollapse} />
         </div>
       </div>
@@ -141,6 +150,7 @@ function WorkoutEditor({ workout, n, onChange, onDuplicate, onDelete, onCollapse
               key={exercise.id}
               exercise={exercise}
               n={i + 1}
+              locked={logged.has(exercise.id)}
               onChange={(patch) => setExercises(replaceAt(exercises, i, { ...exercise, ...patch }))}
               onRemove={() => setExercises(removeAt(exercises, i))}
               onDragStart={startDrag(i)}
@@ -210,12 +220,30 @@ function PreviousWeek({ client, week }: { client: Client; week: Week }) {
   )
 }
 
-function Planner({ client, onData }: { client: Client; onData: (data: Data) => void }) {
-  const previous = currentWeek(client)
+const changeIcon: Record<PlanChange['kind'], IconName> = { added: 'plus', removed: 'minus', changed: 'arrow' }
+
+interface PlannerProps {
+  client: Client
+  onData: (data: Data) => void
+  /** The published week to change, instead of planning the next one. */
+  editing?: Week
+}
+
+function Planner({ client, onData, editing }: PlannerProps) {
+  const previous = editing ? client.weeks.at(-2) : currentWeek(client)
+  const published = useMemo(() => editing && toPlanForm(editing), [editing?.id])
   const [form, setForm] = useState<PlanForm>(
-    () => client.draft ?? (previous ? copyWeek(previous) : blankPlan()),
+    () => published ?? client.draft ?? (previous ? copyWeek(previous) : blankPlan()),
   )
-  const [openId, setOpenId] = useState<string | null>(form.workouts[0]?.id ?? null)
+  const [confirming, setConfirming] = useState(false)
+  const changes = published ? planChanges(published, form) : []
+  // What the client has already done keeps the plan it was done against.
+  const finished = new Set(editing?.workouts.filter(isFinished).map((it) => it.id))
+  const logged = new Set(editing?.workouts.flatMap((it) => it.exercises).filter((it) => it.log).map((it) => it.id))
+  const started = finished.size > 0 || logged.size > 0
+  const [openId, setOpenId] = useState<string | null>(
+    form.workouts.find((it) => !editing?.workouts.some((done) => done.id === it.id && isFinished(done)))?.id ?? null,
+  )
   const [errors, setErrors] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
   const name = firstName(client.name)
@@ -237,6 +265,14 @@ function Planner({ client, onData }: { client: Client; onData: (data: Data) => v
   }
   const save = () => send(() => saveDraft(client.id, form), () => setSaved(true))
   const publish = () => send(() => publishWeek(client.id, form), () => navigate('/'))
+  const publishChanges = () => {
+    setConfirming(false)
+    send(() => editWeek(client.id, editing!.id, form), () => navigate(`/clients/${client.id}`))
+  }
+  const discard = () => {
+    if (changes.length && !confirm('Discard your changes to this week?')) return
+    navigate(`/clients/${client.id}`)
+  }
 
   const startFromScratch = () => {
     if (!confirm('Clear this plan and start from an empty week?')) return
@@ -250,11 +286,11 @@ function Planner({ client, onData }: { client: Client; onData: (data: Data) => v
     setOpenId(workout.id)
   }
 
-  const heading = previous ? 'Plan next week' : 'Plan first week'
+  const heading = editing ? `Edit ${weekTitle(editing)}` : previous ? 'Plan next week' : 'Plan first week'
   const copiedFrom = previous && `copied from Week ${previous.number}`
   const subtitle = (workout: PlanWorkout) => {
     const count = workout.exercises.length
-    const copied = previous?.workouts.some((it) => it.id === workout.id)
+    const copied = !editing && previous?.workouts.some((it) => it.id === workout.id)
     return `${count} ${count === 1 ? 'exercise' : 'exercises'}${copied ? ` · ${copiedFrom}` : ''}`
   }
 
@@ -269,14 +305,14 @@ function Planner({ client, onData }: { client: Client; onData: (data: Data) => v
           leading={<NumberBadge>{offset + i + 1}</NumberBadge>}
           title={workout.name || 'Unnamed workout'}
           subtitle={subtitle(workout)}
-          action={
+          action={finished.has(workout.id) ? <Chip tone="green" icon="check">Finished</Chip> : (
             <Button
               variant="outline" size="sm" aria-label={`Edit workout ${offset + i + 1}, ${workout.name}`}
               onClick={() => setOpenId(workout.id)}
             >
               Edit
             </Button>
-          }
+          )}
         />
       ))}
     </Card>
@@ -287,21 +323,33 @@ function Planner({ client, onData }: { client: Client; onData: (data: Data) => v
       <Breadcrumbs
         items={[
           { label: 'Clients', to: '/' },
-          { label: client.name, to: previous && `/clients/${client.id}` },
+          { label: client.name, to: (editing || previous) && `/clients/${client.id}` },
           { label: heading },
         ]}
       />
 
       <PageHeader
         title={heading}
-        subtitle={`For ${client.name}${previous ? ` · follows ${weekTitle(previous)}` : ''}`}
-        actions={
+        subtitle={editing
+          ? `Live for ${client.name} since ${formatDate(editing.startedOn)}`
+          : `For ${client.name}${previous ? ` · follows ${weekTitle(previous)}` : ''}`}
+        actions={editing ? (
+          <>
+            {changes.length > 0 && (
+              <span role="status" className="muted small">
+                {changes.length} {changes.length === 1 ? 'change' : 'changes'}, not published
+              </span>
+            )}
+            <Button variant="text" onClick={discard}>Discard changes</Button>
+            <Button icon="send" disabled={!changes.length} onClick={() => setConfirming(true)}>Publish changes</Button>
+          </>
+        ) : (
           <>
             {saved && <span role="status" className="muted small">Draft saved</span>}
             <Button variant="outline" onClick={save}>Save draft</Button>
             <Button icon="send" onClick={publish}>Publish to {name}</Button>
           </>
-        }
+        )}
       />
 
       {errors.length > 0 && <ErrorList title="Fix these before publishing:" errors={errors} />}
@@ -320,7 +368,13 @@ function Planner({ client, onData }: { client: Client; onData: (data: Data) => v
                 onChange={(e) => change({ ...form, purpose: e.target.value })}
               />
             </div>
-            {previous && (
+            {editing && started && (
+              <Callout icon="alert">
+                {name} has started this week. <strong>Finished workouts and logged exercises stay as planned</strong>;
+                you can still change their notes.
+              </Callout>
+            )}
+            {!editing && previous && (
               <Callout
                 icon="copy"
                 action={<Button variant="text" size="compact" onClick={startFromScratch}>Start from scratch</Button>}
@@ -336,6 +390,7 @@ function Planner({ client, onData }: { client: Client; onData: (data: Data) => v
               key={openId}
               workout={form.workouts[openIndex]}
               n={openIndex + 1}
+              logged={logged}
               onChange={(workout) => setWorkouts(replaceAt(form.workouts, openIndex, workout))}
               onDuplicate={() => addWorkout(duplicateWorkout(form.workouts[openIndex]))}
               onDelete={() => {
@@ -357,12 +412,48 @@ function Planner({ client, onData }: { client: Client; onData: (data: Data) => v
         </div>
         {previous?.finishedOn && <PreviousWeek client={client} week={previous} />}
       </div>
+
+      {editing && (
+        <Dialog
+          open={confirming}
+          onClose={() => setConfirming(false)}
+          title={`Publish ${changes.length === 1 ? 'this change' : `${changes.length} changes`} to ${name}?`}
+          actions={
+            <>
+              <Button variant="text" onClick={() => setConfirming(false)}>Keep editing</Button>
+              <Button icon="send" onClick={publishChanges}>Publish changes</Button>
+            </>
+          }
+        >
+          <div className="stack" style={{ gap: 16 }}>
+            <FlagList>
+              {changes.map((change, i) => (
+                <FlagItem key={i} icon={changeIcon[change.kind]} title={change.title}>{change.detail}</FlagItem>
+              ))}
+            </FlagList>
+            <p className="muted small">The week updates on {name}'s phone the next time the app opens.</p>
+          </div>
+        </Dialog>
+      )}
     </>
   )
 }
 
-export function PlanWeek({ data, clientId, onData }: { data: Data; clientId: string; onData: (data: Data) => void }) {
+interface PlanWeekProps {
+  data: Data
+  clientId: string
+  onData: (data: Data) => void
+  /** Change the week the client is on instead of planning the next one. */
+  edit?: boolean
+}
+
+export function PlanWeek({ data, clientId, onData, edit }: PlanWeekProps) {
   const client = data.clients.find((it) => it.id === clientId)
   if (!client) return <p>No such client. <Link to="/">Back to clients</Link></p>
-  return <Planner client={client} onData={onData} />
+  if (!edit) return <Planner client={client} onData={onData} />
+  const week = currentWeek(client)
+  if (!week || week.finishedOn) {
+    return <p>There is no week in progress to edit. <Link to={`/clients/${client.id}`}>Back to {client.name}</Link></p>
+  }
+  return <Planner client={client} onData={onData} editing={week} />
 }

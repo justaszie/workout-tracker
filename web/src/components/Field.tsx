@@ -76,14 +76,15 @@ export interface SegmentedControlProps {
   options: Option[]
   value: string
   onChange: (value: string) => void
+  disabled?: boolean
 }
 
 /** 40px pill of mutually exclusive segments; the selected one is tinted red. */
-export function SegmentedControl({ label, options, value, onChange }: SegmentedControlProps) {
+export function SegmentedControl({ label, options, value, onChange, disabled }: SegmentedControlProps) {
   return (
     <div role="group" aria-label={label} className="segments">
       {options.map((option) => (
-        <button key={option.value} type="button" aria-pressed={value === option.value} onClick={() => onChange(option.value)}>
+        <button key={option.value} type="button" aria-pressed={value === option.value} disabled={disabled} onClick={() => onChange(option.value)}>
           {option.label}
         </button>
       ))}

@@ -6,7 +6,7 @@ import {
   currentWeek, initialsOf, newId, toDateString,
   type ExerciseLog, type PlanForm, type Week,
 } from '../shared/model.ts'
-import { planErrors, toWeek } from '../shared/plan.ts'
+import { editErrors, editWeek, planErrors, toWeek } from '../shared/plan.ts'
 import { Refused, type Store } from './store.ts'
 
 interface Options {
@@ -123,6 +123,20 @@ export function createApp(store: Store, options: Options = {}) {
       if (errors.length) throw new Refused(422, ...errors)
       client.weeks.push(toWeek(req.body, previous, today()))
       client.draft = null
+    })
+    res.json(await store.data())
+  })
+
+  // Changes the plan of the week the client is on. What they have finished or logged stays as it was.
+  api.put('/clients/:clientId/weeks/:weekId/plan', async (req, res) => {
+    await store.update(req.params.clientId, (client) => {
+      if (!isPlanForm(req.body)) throw new Refused(400, 'Malformed plan.')
+      const week = currentWeek(client)
+      if (week?.id !== req.params.weekId) throw new Refused(409, 'That is not the current week.')
+      if (week.finishedOn) throw new Refused(409, "This week is finished, so its plan can't change.")
+      const errors = editErrors(week, req.body)
+      if (errors.length) throw new Refused(422, ...errors)
+      client.weeks[client.weeks.length - 1] = editWeek(week, req.body, client.weeks.at(-2))
     })
     res.json(await store.data())
   })

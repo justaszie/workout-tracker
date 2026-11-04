@@ -600,3 +600,8 @@ h1 {
   letter-spacing: 0.1px;
   text-decoration: none;
 }
+
+/* Logged exercises in a live week keep their plan. */
+.input:disabled { background: var(--paper); color: var(--ink); border-color: var(--grey-90); }
+.segments button:disabled { cursor: default; color: var(--ink-muted); }
+.segments button[aria-pressed=true]:disabled { color: var(--on-red-container); }
