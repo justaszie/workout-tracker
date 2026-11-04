@@ -5,7 +5,7 @@ import {
   statusLabel, waitingText, weekSummary, workoutState,
   type Client, type Exercise, type Week, type Workout,
 } from './model.ts'
-import { blankPlan, copyWeek, planErrors, toWeek } from './plan.ts'
+import { blankPlan, copyWeek, editErrors, editWeek, planChanges, planErrors, toPlanForm, toWeek } from './plan.ts'
 
 const exercise = (fields: Partial<Exercise> = {}): Exercise => ({
   id: 'e', name: 'Bench press', sets: 3, reps: 10, perSide: false, load: { type: 'none' },
@@ -199,5 +199,58 @@ describe('history', () => {
     assert.deepEqual(compareWithWeek(now, previous(52.5, 9)), { change: 'Same', before: '52.5 kg', up: false })
     assert.equal(compareWithWeek(now, undefined), null)
     assert.equal(compareWithWeek(exercise(), previous(50)), null)
+  })
+})
+
+describe('editing a published week', () => {
+  const live = () => week({
+    workouts: [
+      workout({ id: 'a', name: 'Lower', finishedOn: '2026-10-26', exercises: [exercise({ id: 'sq', name: 'Squat', log: log() })] }),
+      workout({
+        id: 'b', name: 'Upper',
+        exercises: [
+          exercise({ id: 'bp', name: 'Bench press', log: log() }),
+          exercise({ id: 'oh', name: 'Overhead press', load: { type: 'fixed', kg: 47.5 } }),
+        ],
+      }),
+    ],
+  })
+
+  it('round-trips a week through the builder unchanged', () => {
+    const form = toPlanForm(live())
+    assert.equal(form.title, 'Block 2 · Week 3')
+    assert.deepEqual(editErrors(live(), form), [])
+    assert.deepEqual(editWeek(live(), form, undefined), live())
+    assert.deepEqual(planChanges(form, toPlanForm(live())), [])
+  })
+
+  it('locks finished workouts and logged targets, but not notes', () => {
+    const form = toPlanForm(live())
+    form.workouts[1].exercises[0].note = 'Pause the first rep'
+    assert.deepEqual(editErrors(live(), form), [])
+    assert.equal(editWeek(live(), form, undefined).workouts[1].exercises[0].coachNote, 'Pause the first rep')
+
+    form.workouts[1].exercises[0].kg = '80'
+    form.workouts[1].exercises[0].type = 'kg'
+    form.workouts[0].name = 'Legs'
+    assert.deepEqual(editErrors(live(), form), [
+      "Lower is finished, so it can't change.",
+      'Bench press in Upper is logged, so only its note can change.',
+    ])
+    form.workouts = []
+    assert.ok(editErrors(live(), form).includes("Lower is finished, so it can't be removed."))
+  })
+
+  it('lists what changed', () => {
+    const before = toPlanForm(live())
+    const after = toPlanForm(live())
+    after.workouts[1].exercises[1].kg = '45'
+    after.workouts[1].exercises.push({ ...after.workouts[1].exercises[1], id: 'fp', name: 'Face pull', type: 'none' })
+    after.workouts.splice(0, 1)
+    assert.deepEqual(planChanges(before, after), [
+      { kind: 'removed', title: 'Lower removed', detail: 'Had 1 exercise' },
+      { kind: 'changed', title: 'Overhead press · Upper', detail: '47.5 kg → 45 kg' },
+      { kind: 'added', title: 'Face pull added to Upper', detail: '3 × 10, no target' },
+    ])
   })
 })

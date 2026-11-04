@@ -30,7 +30,7 @@ export function App() {
     return () => removeEventListener('focus', refresh)
   }, [refresh])
 
-  const [, clientId, page, weekId] = /^\/clients\/([^/]+)(?:\/(plan|history|weeks\/([^/]+)))?$/.exec(path) ?? []
+  const [, clientId, page, weekId] = /^\/clients\/([^/]+)(?:\/(plan|edit|history|weeks\/([^/]+)))?$/.exec(path) ?? []
   return (
     <AppShell nav={<NavRail items={NAV} />}>
       {failed && !data && <p role="alert">Couldn't reach the server. Reload to try again.</p>}
@@ -38,6 +38,7 @@ export function App() {
       {data && clientId && (!page || weekId) && <Review data={data} clientId={clientId} weekId={weekId} />}
       {data && page === 'history' && <History data={data} clientId={clientId} />}
       {data && page === 'plan' && <PlanWeek key={clientId} data={data} clientId={clientId} onData={setData} />}
+      {data && page === 'edit' && <PlanWeek key={`${clientId}-edit`} data={data} clientId={clientId} onData={setData} edit />}
     </AppShell>
   )
 }

@@ -3,7 +3,7 @@ import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { after, beforeEach, describe, it } from 'node:test'
 import type { Data, PlanForm, Week } from '../shared/model.ts'
-import { blankPlan } from '../shared/plan.ts'
+import { blankExercise, blankPlan, toPlanForm } from '../shared/plan.ts'
 import { createApp } from './app.ts'
 import { databaseUrl, openStore, type Store } from './store.ts'
 
@@ -141,6 +141,61 @@ describe('progress from the client app', () => {
   it('rejects progress for a week that is no longer current', async () => {
     await publish()
     assert.equal((await send('PUT', '/clients/me/weeks/old/progress', {})).status, 409)
+  })
+})
+
+describe('editing the current week', () => {
+  beforeEach(() => start())
+
+  const edit = (week: Week, form: PlanForm) => send('PUT', `/clients/me/weeks/${week.id}/plan`, form)
+
+  it('changes the plan and keeps the week, its ids and the client logs', async () => {
+    const week = await publish()
+    await send('PUT', `/clients/me/weeks/${week.id}/progress`, { workouts: { w1: { logs: { e1: log } } } })
+    const form = toPlanForm((await store.client('me')).weeks[0])
+    form.purpose = 'Heavier'
+    form.workouts[0].exercises[0].note = 'Brace first'
+    form.workouts[0].exercises.push({ ...blankExercise(), id: 'e2', name: 'Lunge' })
+    assert.equal((await edit(week, form)).status, 200)
+
+    const [saved] = (await store.client('me')).weeks
+    assert.equal(saved.id, week.id)
+    assert.equal(saved.theme, 'Heavier')
+    assert.deepEqual(saved.workouts[0].exercises.map((it) => it.id), ['e1', 'e2'])
+    assert.equal(saved.workouts[0].exercises[0].coachNote, 'Brace first')
+    assert.deepEqual(saved.workouts[0].exercises[0].log, { ...log, weightKg: null, note: '' })
+
+    const current: Week = await (await fetch(`${base}/clients/me/current-week`)).json()
+    assert.equal(current.workouts[0].exercises[1].name, 'Lunge')
+  })
+
+  it('refuses to change or remove what the client has logged', async () => {
+    const week = await publish()
+    await send('PUT', `/clients/me/weeks/${week.id}/progress`, { workouts: { w1: { logs: { e1: log } } } })
+    const form = toPlanForm((await store.client('me')).weeks[0])
+    form.workouts[0].exercises[0].sets = '5'
+    const changed = await edit(week, form)
+    assert.equal(changed.status, 422)
+    assert.match((await changed.json()).errors.join(' '), /logged/)
+
+    form.workouts[0].exercises = [{ ...blankExercise(), name: 'Lunge' }]
+    assert.equal((await edit(week, form)).status, 422)
+  })
+
+  it('refuses to change a finished workout', async () => {
+    const week = await publish()
+    await send('PUT', `/clients/me/weeks/${week.id}/progress`, { workouts: { w1: { finishedOn: today } } })
+    const form = toPlanForm((await store.client('me')).weeks[0])
+    form.workouts[0].name = 'Renamed'
+    assert.equal((await edit(week, form)).status, 422)
+  })
+
+  it('refuses an old or finished week', async () => {
+    const week = await publish()
+    const form = toPlanForm(week)
+    assert.equal((await send('PUT', '/clients/me/weeks/old/plan', form)).status, 409)
+    await send('PUT', `/clients/me/weeks/${week.id}/progress`, { finishedOn: today })
+    assert.equal((await edit(week, form)).status, 409)
   })
 })
 

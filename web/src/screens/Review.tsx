@@ -125,6 +125,33 @@ function ResultRow({ exercise, previous }: { exercise: Exercise; previous: Week 
   )
 }
 
+const PLAN_COLUMNS: Column[] = [
+  { header: 'Exercise', width: 'minmax(180px, 1.2fr)' },
+  { header: 'Planned', width: '200px' },
+  { header: 'Note for client', width: 'minmax(220px, 1.6fr)' },
+  { header: 'Link', width: '170px' },
+]
+
+/** A workout nothing has been logged in yet shows what was planned. */
+function PlanRow({ exercise }: { exercise: Exercise }) {
+  const links = exercise.resources.flatMap((resource) => {
+    const url = safeUrl(resource.url)
+    return url ? [{ url, label: resource.kind === 'demoVideo' ? 'Demo video' : 'Setup guide' }] : []
+  })
+  return (
+    <TableRow align="start">
+      <TableCell tone="medium">{exercise.name}</TableCell>
+      <TableCell>{plannedText(exercise)}</TableCell>
+      <TableCell tone="muted">{exercise.coachNote || '—'}</TableCell>
+      <TableCell>
+        {links.length ? (
+          <Chips>{links.map((link) => <LinkChip key={link.url} href={link.url} icon="link">{link.label}</LinkChip>)}</Chips>
+        ) : <span className="muted">—</span>}
+      </TableCell>
+    </TableRow>
+  )
+}
+
 function WorkoutCard({ week, previous, workout, n }: { week: Week; previous: Week | undefined; workout: Workout; n: number }) {
   const chip = stateChip[workoutState(week, workout)]
   const album = safeUrl(workout.albumLink)
@@ -140,9 +167,13 @@ function WorkoutCard({ week, previous, workout, n }: { week: Week; previous: Wee
         {album && <LinkChip href={album}>Videos &amp; photos</LinkChip>}
         <Chip tone={chip.tone}>{chip.label}</Chip>
       </div>
-      {logged && (
+      {logged ? (
         <Table label={`${workout.name} results`} columns={columns(previous, week)} minWidth={previous ? 1040 : 880} tinted>
           {workout.exercises.map((exercise) => <ResultRow key={exercise.id} exercise={exercise} previous={previous} />)}
+        </Table>
+      ) : workout.exercises.length > 0 && (
+        <Table label={`${workout.name} plan`} columns={PLAN_COLUMNS} minWidth={800} tinted>
+          {workout.exercises.map((exercise) => <PlanRow key={exercise.id} exercise={exercise} />)}
         </Table>
       )}
     </Card>
@@ -156,6 +187,7 @@ function WeekResults({ client, week }: { client: Client; week: Week }) {
   const previous = client.weeks[index - 1]
   const next = client.weeks[index + 1]
   const isCurrent = week === currentWeek(client)
+  const editable = isCurrent && !week.finishedOn
   const rest = [
     summary.partly && `${summary.partly} partly done`,
     summary.skipped && `${summary.skipped} skipped`,
@@ -178,7 +210,7 @@ function WeekResults({ client, week }: { client: Client; week: Week }) {
       <PageHeader
         title={title}
         leading={<Avatar initials={client.initials} name={client.name} large />}
-        actions={(previous || next || (isCurrent && week.finishedOn)) && (
+        actions={(previous || next || isCurrent) && (
           <>
             {previous && (
               <Button to={weekPath(client, previous)} variant="outline" aria-label={`Previous: ${weekTitle(previous)}`}>
@@ -193,6 +225,7 @@ function WeekResults({ client, week }: { client: Client; week: Week }) {
                 {relativeWeekTitle(next, week)}
               </Button>
             )}
+            {editable && <Button to={`/clients/${client.id}/edit`}>Edit plan</Button>}
             {isCurrent && week.finishedOn && (
               <Button to={`/clients/${client.id}/plan`} icon="arrow" iconPosition="right">
                 Plan {nextWeekTitle(week)}

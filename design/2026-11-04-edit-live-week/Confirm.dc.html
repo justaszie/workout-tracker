@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Publish changes</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/workout-coach/tokens.css">
+<link rel="stylesheet" href="ds/workout-coach/components/bundle.css">
+<script src="ds/workout-coach/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#C8102E}a:hover{color:#9E0B22}
+</style>
+</helmet>
+<div class="shell">
+<x-import component-from-global-scope="WorkoutCoach.NavRail" items="{{nav}}"></x-import>
+<main class="main">
+<div class="page">
+<x-import component-from-global-scope="WorkoutCoach.Breadcrumbs" items="{{crumbs}}"></x-import>
+<header class="page-header">
+<div class="page-title-stack">
+<h1>Edit Block 3 · Week 1</h1>
+<p class="subtitle">Live for Alex Petrauskas since Mon 2 Nov · 1 of 4 workouts done</p>
+</div>
+</header>
+<div class="card" style="height: 480px"></div>
+</div>
+</main>
+</div>
+
+<x-import component-from-global-scope="WorkoutCoach.Dialog" open="{{yes}}" on-close="{{noop}}" title="Publish 3 changes to Alex?">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<x-import component-from-global-scope="WorkoutCoach.FlagList">
+<x-import component-from-global-scope="WorkoutCoach.FlagItem" icon="up" title="Overhead press">Load 47.5 → 45 kg</x-import>
+<x-import component-from-global-scope="WorkoutCoach.FlagItem" icon="plus" title="Face pull added to Upper A">3 × 15, no target</x-import>
+<x-import component-from-global-scope="WorkoutCoach.FlagItem" icon="minus" title="Lateral raise removed from Upper B">Was 3 × 15 at RPE 8</x-import>
+</x-import>
+<p class="muted small">The week updates on Alex’s phone the next time the app opens. Lower A and the logged Bench press stay exactly as they are.</p>
+</div>
+<div class="dialog-actions">
+<a class="btn btn-text" href="Edit.dc.html">Keep editing</a>
+<a class="btn btn-primary btn-icon-left" href="Main.dc.html"><x-import component-from-global-scope="WorkoutCoach.Icon" name="send"></x-import>Publish changes</a>
+</div>
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      yes: true,
+      noop: () => {},
+      nav: [
+        { label: 'Clients', icon: 'clients', to: '/', current: true },
+        { label: 'Library', icon: 'library', disabled: true },
+        { label: 'Settings', icon: 'settings', disabled: true },
+      ],
+      crumbs: [
+        { label: 'Clients', to: '/' },
+        { label: 'Alex Petrauskas', to: '/clients/alex' },
+        { label: 'Block 3 · Week 1', to: '/clients/alex' },
+        { label: 'Edit plan' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

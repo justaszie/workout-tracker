@@ -26,3 +26,5 @@ export const saveDraft = (clientId: string, form: PlanForm) =>
   request(`/clients/${clientId}/draft`, 'PUT', form)
 export const publishWeek = (clientId: string, form: PlanForm) =>
   request(`/clients/${clientId}/publish`, 'POST', form)
+export const editWeek = (clientId: string, weekId: string, form: PlanForm) =>
+  request(`/clients/${clientId}/weeks/${weekId}/plan`, 'PUT', form)
