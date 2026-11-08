@@ -346,6 +346,93 @@ export function compareWithWeek(exercise: Exercise, previous: Week | undefined):
   return { change: 'Same', before: then.weightKg != null ? `${formatKg(then.weightKg)} kg` : `RPE ${then.rpe}`, up: false }
 }
 
+// Last week, next to the plan for the next one
+
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+
+/** The workout in [previous] that [workout] was planned from: the same id, else the same name. */
+export function previousWorkout(workout: Pick<PlanWorkout, 'id' | 'name'>, previous: Week): Workout | undefined {
+  return previous.workouts.find((it) => it.id === workout.id)
+    ?? previous.workouts.find((it) => sameName(it.name, workout.name))
+}
+
+/**
+ * The exercise in [previous] that [exercise] continues. Copied exercises keep their id; one the coach removed
+ * and added again is found by name, first in the same workout, then anywhere in the week.
+ */
+export function previousExercise(
+  exercise: Pick<PlanExercise, 'id' | 'name'>, workout: Pick<PlanWorkout, 'id' | 'name'>, previous: Week,
+): Exercise | undefined {
+  const all = previous.workouts.flatMap((it) => it.exercises)
+  const byId = all.find((it) => it.id === exercise.id)
+  if (byId) return byId
+  if (!exercise.name.trim()) return undefined
+  return previousWorkout(workout, previous)?.exercises.find((it) => sameName(it.name, exercise.name))
+    ?? all.find((it) => sameName(it.name, exercise.name))
+}
+
+export type ResultFlag = 'missedReps' | 'aboveRpe' | 'weightVaried' | 'notLogged'
+
+export interface SetResult {
+  reps: number
+  /** Null when not logged for this set, or for a bodyweight set. */
+  weightKg: number | null
+  rpe: number | null
+  missed: boolean
+  aboveRpe: boolean
+}
+
+export interface ExerciseResult {
+  /** The flag the coach should see first, or null when it went as planned. */
+  flag: ResultFlag | null
+  /** Reps short of the plan, summed over all sets. */
+  repsShort: number
+  /** Every set, when there is more to see than the last set: each set was logged, or reps were missed. */
+  sets: SetResult[] | null
+  /** Weight and RPE are known for the last set only. */
+  lastSetOnly: boolean
+}
+
+/** How [exercise] went, for the summary under the same exercise in the next week's plan. */
+export function exerciseResult(exercise: Exercise): ExerciseResult {
+  const { log, load } = exercise
+  if (!log) return { flag: 'notLogged', repsShort: 0, sets: null, lastSetOnly: false }
+  const repsShort = log.repsPerSet.reduce((sum, reps) => sum + Math.max(0, exercise.reps - reps), 0)
+  const weights = new Set(log.perSet?.map((set) => set.weightKg).filter((kg) => kg != null))
+  const flag: ResultFlag | null = repsShort > 0 ? 'missedReps'
+    : aboveTargetRpe(exercise) ? 'aboveRpe'
+    : weights.size > 1 ? 'weightVaried'
+    : null
+  const last = log.repsPerSet.length - 1
+  const sets = log.perSet || repsShort > 0
+    ? log.repsPerSet.map((reps, i) => {
+      const logged = log.perSet?.[i]
+      const weightKg = logged ? logged.weightKg : i === last ? log.weightKg : null
+      const rpe = logged ? logged.rpe : i === last ? log.rpe : null
+      return {
+        reps, weightKg, rpe,
+        missed: reps < exercise.reps,
+        aboveRpe: load.type === 'rpe' && rpe != null && rpe > load.rpe,
+      }
+    })
+    : null
+  return { flag, repsShort, sets, lastSetOnly: !log.perSet }
+}
+
+/** '62.5 kg · RPE 9', or 'RPE 7' without a weight. */
+export const lastSetText = (log: ExerciseLog) =>
+  log.weightKg == null ? `RPE ${log.rpe}` : `${formatKg(log.weightKg)} kg · RPE ${log.rpe}`
+
+/** The exercises of [workout] that the plan [form] no longer has anywhere. */
+export function droppedExercises(workout: Workout, form: PlanForm, previous: Week): Exercise[] {
+  const kept = new Set(form.workouts.flatMap((planned) =>
+    planned.exercises.map((exercise) => previousExercise(exercise, planned, previous)?.id)))
+  return workout.exercises.filter((exercise) => !kept.has(exercise.id))
+}
+
+/** Exercises the coach should look at: reps missed or RPE above target. */
+export const isFlagged = (exercise: Exercise) => missedReps(exercise) || aboveTargetRpe(exercise)
+
 // Client status
 
 export const currentWeek = (client: Client): Week | undefined => client.weeks.at(-1)

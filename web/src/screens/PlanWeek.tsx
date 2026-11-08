@@ -1,17 +1,19 @@
-import { useMemo, useState, type DragEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import {
-  aboveTargetRpe, currentWeek, firstName, formatDate, formatKg, gapsText, loadDifference, missedReps,
-  repsText, weekSummary, weekTitle,
+  aboveTargetRpe, currentWeek, droppedExercises, exerciseResult, firstName, formatDate, formatKg, gapsText,
+  isFlagged, lastSetText, missedReps, plannedText, previousExercise, previousWorkout, repsText, weekSummary,
+  weekTitle, workoutState,
   type Client, type Data, type Exercise, type PlanExercise, type PlanForm, type PlanWorkout, type Week,
 } from '../../shared/model.ts'
 import {
-  blankExercise, blankPlan, blankWorkout, copyWeek, duplicateWorkout, isFinished, planChanges, toPlanForm,
-  type PlanChange,
+  blankExercise, blankPlan, blankWorkout, copyWeek, duplicateWorkout, isFinished, parseTitle, planChanges,
+  toPlanExercise, toPlanForm, type PlanChange,
 } from '../../shared/plan.ts'
 import { ApiError, editWeek, publishWeek, saveDraft } from '../api.ts'
 import {
-  Breadcrumbs, Button, Callout, Card, Chip, Dialog, ErrorList, FlagItem, FlagList, GripIcon, IconButton, Input,
-  Link, ListRow, NumberBadge, PageHeader, SegmentedControl, TextField, TextLink, type IconName, type Option,
+  Breadcrumbs, Button, Callout, Card, Chip, Dialog, ErrorList, FlagItem, FlagList, GripIcon, Icon, IconButton,
+  Input, Link, ListRow, NumberBadge, PageHeader, SegmentedControl, TextField, TextLink, type ChipProps,
+  type IconName, type Option,
 } from '../components/index.ts'
 import { navigate } from '../router.tsx'
 
@@ -30,18 +32,174 @@ function move<T>(list: T[], from: number, to: number) {
   return result
 }
 
+/** The week the plan is compared with, and whose name is used for the client. */
+interface Review {
+  week: Week
+  client: string
+}
+
+const resultChip: Record<'missedReps' | 'aboveRpe' | 'weightVaried', { tone: ChipProps['tone']; icon: IconName }> = {
+  missedReps: { tone: 'red', icon: 'alert' },
+  aboveRpe: { tone: 'red', icon: 'up' },
+  weightVaried: { tone: 'amber', icon: 'arrow' },
+}
+
+function SetsButton({ exercise, children }: { exercise: Exercise; children: ReactNode }) {
+  const id = useId()
+  const button = useRef<HTMLButtonElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    const box = panel.current!
+    const toggle = (event: Event) => setOpen((event as ToggleEvent).newState === 'open')
+    box.addEventListener('toggle', toggle)
+    return () => box.removeEventListener('toggle', toggle)
+  }, [])
+
+  // The panel sits in the top layer, so it isn't clipped by the scrolling exercise list; keep it under the button.
+  useEffect(() => {
+    if (!open) return
+    const place = () => {
+      const anchor = button.current!.getBoundingClientRect()
+      const box = panel.current!
+      box.style.top = `${anchor.bottom + 8}px`
+      box.style.left = `${Math.max(16, anchor.right - box.offsetWidth)}px`
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open])
+
+  return (
+    <>
+      <button ref={button} type="button" className={`sets-toggle${open ? ' open' : ''}`} popoverTarget={id}>
+        {open ? 'Hide sets' : 'Show all sets'}
+      </button>
+      <div
+        ref={panel} id={id} popover="auto" className="sets-panel" aria-label={`All sets of ${exercise.name}`}
+      >
+        {children}
+      </div>
+    </>
+  )
+}
+
+function SetsPanel({ exercise, review }: { exercise: Exercise; review: Review }) {
+  const { sets, lastSetOnly } = exerciseResult(exercise)
+  const show = (value: number | null, unit = '') => (value == null ? '—' : `${formatKg(value)}${unit}`)
+  return (
+    <>
+      <div className="stack">
+        <span className="medium">{exercise.name} · Week {review.week.number}</span>
+        <span className="caption">Planned {plannedText(exercise)}</span>
+      </div>
+      <table className="sets-table">
+        <thead><tr><th>Set</th><th>Reps</th><th>Weight</th><th>RPE</th></tr></thead>
+        <tbody>
+          {sets?.map((set, i) => (
+            <tr key={i}>
+              <td className="muted">Set {i + 1}</td>
+              <td className={set.missed ? 'flagged' : undefined}>{set.reps}</td>
+              <td>{show(set.weightKg, ' kg')}</td>
+              <td className={set.aboveRpe ? 'flagged' : undefined}>{show(set.rpe)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {lastSetOnly && <p className="caption">{review.client} logged weight and RPE for the last set only.</p>}
+      {exercise.log?.note && <p className="small sets-note">“{exercise.log.note}”</p>}
+    </>
+  )
+}
+
+/** Under an exercise in the plan: what the client did with it in the week being reviewed. */
+function LastWeekStrip({ exercise, review }: { exercise: Exercise | undefined; review: Review }) {
+  if (!exercise) {
+    return (
+      <div className="last-week last-week-new">
+        <Icon name="plus" size={18} />
+        <span>New this week. Nothing to compare yet.</span>
+      </div>
+    )
+  }
+  const { log } = exercise
+  const result = exerciseResult(exercise)
+  const planned = plannedText(exercise)
+  const chip = result.flag && result.flag !== 'notLogged' && resultChip[result.flag]
+  const chipText = result.flag === 'missedReps'
+    ? `${result.repsShort} ${result.repsShort === 1 ? 'rep' : 'reps'} short`
+    : result.flag === 'aboveRpe' ? 'RPE above target' : 'Weight varied'
+  return (
+    <div className="last-week">
+      <div className="last-week-values">
+        <span className="eyebrow">Week {review.week.number}</span>
+        <span title={`Planned ${planned}`}>Planned <strong>{planned}</strong></span>
+        {log ? (
+          <>
+            <span title={`Last set ${lastSetText(log)}`}>
+              Last set <strong>
+                {log.weightKg != null && `${formatKg(log.weightKg)} kg · `}
+                <span className={aboveTargetRpe(exercise) ? 'flagged' : undefined}>RPE {log.rpe}</span>
+              </strong>
+            </span>
+            <span title={`Reps ${repsText(log)}`}>
+              Reps <strong className={missedReps(exercise) ? 'flagged' : undefined}>{repsText(log)}</strong>
+            </span>
+          </>
+        ) : (
+          <span>{review.week.finishedOn ? 'Not logged' : 'Not logged yet'}</span>
+        )}
+      </div>
+      {(chip || result.sets) && (
+        <div className="last-week-actions">
+          {chip && <Chip tone={chip.tone} icon={chip.icon}>{chipText}</Chip>}
+          {result.sets && (
+            <SetsButton exercise={exercise}>
+              <SetsPanel exercise={exercise} review={review} />
+            </SetsButton>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DroppedRow({ exercise, review, onAddBack }: { exercise: Exercise; review: Review; onAddBack: () => void }) {
+  const { log } = exercise
+  return (
+    <div className="dropped">
+      <span className="eyebrow">Dropped since Week {review.week.number}</span>
+      <span className="dropped-name">{exercise.name}</span>
+      <span>Planned <strong>{plannedText(exercise)}</strong></span>
+      {log && <span>Last set <strong>{lastSetText(log)}</strong>{missedReps(exercise) ? '' : ', all reps'}</span>}
+      <span className="dropped-space" />
+      <Button variant="text" size="sm" icon="plus" aria-label={`Add ${exercise.name} back`} onClick={onAddBack}>
+        Add back
+      </Button>
+    </div>
+  )
+}
+
 interface ExerciseRowProps {
   exercise: PlanExercise
   n: number
   /** Logged by the client, so only its note and link can change. */
   locked: boolean
+  /** The week to compare with, and this exercise in it (undefined when it is new). */
+  review?: Review
+  previous?: Exercise
   onChange: (patch: Partial<PlanExercise>) => void
   onRemove: () => void
   onDragStart: (event: DragEvent) => void
   onDrop: () => void
 }
 
-function ExerciseRow({ exercise, n, locked, onChange, onRemove, onDragStart, onDrop }: ExerciseRowProps) {
+function ExerciseRow({ exercise, n, locked, review, previous, onChange, onRemove, onDragStart, onDrop }: ExerciseRowProps) {
   return (
     <div
       className="exercise"
@@ -94,6 +252,12 @@ function ExerciseRow({ exercise, n, locked, onChange, onRemove, onDragStart, onD
         />
         <span />
       </div>
+      {review && (
+        <div className="last-week-row">
+          <span />
+          <LastWeekStrip exercise={previous} review={review} />
+        </div>
+      )}
     </div>
   )
 }
@@ -102,16 +266,25 @@ interface WorkoutEditorProps {
   workout: PlanWorkout
   n: number
   logged: Set<string>
+  review?: Review
+  /** Exercises of this workout in the reviewed week that the plan no longer has. */
+  dropped: Exercise[]
   onChange: (workout: PlanWorkout) => void
   onDuplicate: () => void
   onDelete: () => void
   onCollapse: () => void
 }
 
-function WorkoutEditor({ workout, n, logged, onChange, onDuplicate, onDelete, onCollapse }: WorkoutEditorProps) {
+function WorkoutEditor({
+  workout, n, logged, review, dropped, onChange, onDuplicate, onDelete, onCollapse,
+}: WorkoutEditorProps) {
   const [dragging, setDragging] = useState<number | null>(null)
   const { exercises } = workout
   const count = exercises.length
+  const previous = exercises.map((exercise) => review && previousExercise(exercise, workout, review.week))
+  const flagged = previous.filter((it) => it && isFlagged(it)).length
+  const sinceLastWeek = [flagged && `${flagged} flagged`, dropped.length && `${dropped.length} dropped`]
+    .filter(Boolean).join(', ')
 
   const setExercises = (next: PlanExercise[]) => onChange({ ...workout, exercises: next })
   const startDrag = (index: number) => (event: DragEvent) => {
@@ -129,7 +302,9 @@ function WorkoutEditor({ workout, n, logged, onChange, onDuplicate, onDelete, on
           aria-label={`Workout ${n} name`} className="workout-name"
           value={workout.name} onChange={(e) => onChange({ ...workout, name: e.target.value })}
         />
-        <span className="muted small">{count} {count === 1 ? 'exercise' : 'exercises'}</span>
+        <span className="muted small">
+          {count} {count === 1 ? 'exercise' : 'exercises'}{sinceLastWeek && ` · ${sinceLastWeek} since last week`}
+        </span>
         <div className="icon-row">
           <IconButton icon="copy" iconSize={22} label="Duplicate workout" onClick={onDuplicate} />
           <IconButton
@@ -151,6 +326,8 @@ function WorkoutEditor({ workout, n, logged, onChange, onDuplicate, onDelete, on
               exercise={exercise}
               n={i + 1}
               locked={logged.has(exercise.id)}
+              review={review}
+              previous={previous[i]}
               onChange={(patch) => setExercises(replaceAt(exercises, i, { ...exercise, ...patch }))}
               onRemove={() => setExercises(removeAt(exercises, i))}
               onDragStart={startDrag(i)}
@@ -158,6 +335,12 @@ function WorkoutEditor({ workout, n, logged, onChange, onDuplicate, onDelete, on
                 if (dragging !== null) setExercises(move(exercises, dragging, i))
                 setDragging(null)
               }}
+            />
+          ))}
+          {review && dropped.map((exercise) => (
+            <DroppedRow
+              key={exercise.id} exercise={exercise} review={review}
+              onAddBack={() => setExercises([...exercises, toPlanExercise(exercise)])}
             />
           ))}
         </div>
@@ -170,26 +353,20 @@ function WorkoutEditor({ workout, n, logged, onChange, onDuplicate, onDelete, on
   )
 }
 
-const flagIcon = (exercise: Exercise): IconName =>
-  aboveTargetRpe(exercise) ? 'up' : missedReps(exercise) ? 'alert' : 'plus'
-
+/** "Romanian deadlift, 2 reps short" or "Barbell row, RPE 9 for a target of 8". */
 function flagText(exercise: Exercise): string {
-  const { load, log } = exercise
-  if (!log) return ''
-  const note = log.note ? ` “${log.note}”` : ''
-  if (aboveTargetRpe(exercise) && load.type === 'rpe') return `RPE ${log.rpe}, target was ${load.rpe}.${note}`
-  const weight = log.weightKg === null ? '' : ` at ${formatKg(log.weightKg)} kg`
-  if (missedReps(exercise)) return `${repsText(log)} reps${weight}.${note}`
-  return `${formatKg(log.weightKg ?? 0)} kg at RPE ${log.rpe}, planned ${load.type === 'fixed' ? formatKg(load.kg) : 0} kg`
+  const { reps, load, log } = exercise
+  if (!log) return exercise.name
+  const short = log.repsPerSet.reduce((sum, done) => sum + Math.max(0, reps - done), 0)
+  if (short > 0) return `${exercise.name}, ${short} ${short === 1 ? 'rep' : 'reps'} short`
+  return `${exercise.name}, RPE ${log.rpe} for a target of ${load.type === 'rpe' ? load.rpe : '—'}`
 }
+
+const dayOf = (date: string) => formatDate(date).split(' ')[0]
 
 function PreviousWeek({ client, week }: { client: Client; week: Week }) {
   const summary = weekSummary(week)
   const gaps = gapsText(summary).replace(' partly done', ' partly').replace(' · ', ', ')
-  const flagged = week.workouts
-    .flatMap((workout) => workout.exercises)
-    .filter((it) => aboveTargetRpe(it) || missedReps(it) || (loadDifference(it) ?? 0) > 0)
-  const skipped = week.workouts.filter((workout) => !workout.finishedOn && !workout.exercises.some((it) => it.log))
 
   return (
     <aside className="aside">
@@ -199,21 +376,29 @@ function PreviousWeek({ client, week }: { client: Client; week: Week }) {
           <p className="muted small">{weekTitle(week)} · {summary.done} of {summary.total} done{gaps && `, ${gaps}`}</p>
         </div>
         <FlagList>
-          {flagged.map((exercise) => (
-            <FlagItem
-              key={exercise.id} icon={flagIcon(exercise)} title={exercise.name}
-              tone={aboveTargetRpe(exercise) || missedReps(exercise) ? 'red' : 'neutral'}
-            >
-              {flagText(exercise)}
-            </FlagItem>
-          ))}
-          {skipped.length > 0 && (
-            <FlagItem icon="minus" title={`Skipped ${skipped.map((workout) => workout.name).join(' and ')}`}>
-              {week.note && `“${week.note}”`}
-            </FlagItem>
-          )}
+          {week.workouts.map((workout) => {
+            const state = workoutState(week, workout)
+            const flagged = workout.exercises.filter(isFlagged)
+            if (state === 'done') {
+              return (
+                <FlagItem
+                  key={workout.id} icon={flagged.length ? 'alert' : 'check'} tone={flagged.length ? 'red' : 'neutral'}
+                  title={`${workout.name} · done ${dayOf(workout.finishedOn!)}`}
+                >
+                  {flagged.length ? `${flagged.map(flagText).join('. ')}.` : 'As planned.'}
+                </FlagItem>
+              )
+            }
+            const missing = workout.exercises.filter((it) => !it.log).map((it) => it.name)
+            return (
+              <FlagItem key={workout.id} icon="minus" title={`${workout.name} · ${state === 'partly' ? 'partly done' : 'skipped'}`}>
+                {state === 'partly' && `Not logged: ${missing.join(', ')}.`}
+              </FlagItem>
+            )
+          })}
+          {week.note && <FlagItem icon="chat" title={`${firstName(client.name)}'s note`}>“{week.note}”</FlagItem>}
         </FlagList>
-        {flagged.length === 0 && skipped.length === 0 && <p className="muted small">Nothing to flag.</p>}
+        <p className="caption">Each exercise in the plan shows its own result from Week {week.number}.</p>
         <TextLink to={`/clients/${client.id}`}>Open full review</TextLink>
       </Card>
     </aside>
@@ -247,6 +432,11 @@ function Planner({ client, onData, editing }: PlannerProps) {
   const [errors, setErrors] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
   const name = firstName(client.name)
+  // Last week is compared with only within a block; the title says which block the plan is in.
+  const block = parseTitle(form.title)?.block ?? previous?.block
+  const review: Review | undefined = previous && previous.block === block
+    ? { week: previous, client: name } : undefined
+  const firstOfBlock = !editing && previous && !review
 
   const change = (next: PlanForm) => {
     setForm(next)
@@ -297,6 +487,15 @@ function Planner({ client, onData, editing }: PlannerProps) {
   const openIndex = form.workouts.findIndex((workout) => workout.id === openId)
   const before = openIndex < 0 ? form.workouts : form.workouts.slice(0, openIndex)
   const after = openIndex < 0 ? [] : form.workouts.slice(openIndex + 1)
+  const lastWeekChip = (workout: PlanWorkout) => {
+    const before = review && previousWorkout(workout, review.week)
+    if (!before) return null
+    const state = workoutState(review.week, before)
+    if (state === 'partly') return <Chip tone="amber" icon="minus">Partly done last week</Chip>
+    if (state === 'skipped') return <Chip tone="amber" icon="minus">Skipped last week</Chip>
+    const flagged = before.exercises.filter(isFlagged).length
+    return flagged > 0 && <Chip tone="red" icon="alert">{flagged} flagged last week</Chip>
+  }
   const collapsed = (workouts: PlanWorkout[], offset: number) => workouts.length > 0 && (
     <Card label="Other workouts" clip>
       {workouts.map((workout, i) => (
@@ -306,12 +505,15 @@ function Planner({ client, onData, editing }: PlannerProps) {
           title={workout.name || 'Unnamed workout'}
           subtitle={subtitle(workout)}
           action={finished.has(workout.id) ? <Chip tone="green" icon="check">Finished</Chip> : (
-            <Button
-              variant="outline" size="sm" aria-label={`Edit workout ${offset + i + 1}, ${workout.name}`}
-              onClick={() => setOpenId(workout.id)}
-            >
-              Edit
-            </Button>
+            <>
+              {lastWeekChip(workout)}
+              <Button
+                variant="outline" size="sm" aria-label={`Edit workout ${offset + i + 1}, ${workout.name}`}
+                onClick={() => setOpenId(workout.id)}
+              >
+                Edit
+              </Button>
+            </>
           )}
         />
       ))}
@@ -384,6 +586,18 @@ function Planner({ client, onData, editing }: PlannerProps) {
             )}
           </Card>
 
+          {firstOfBlock && (
+            <Card label="Last week" padded className="glance">
+              <div>
+                <h2>Last week</h2>
+                <p className="muted small">Nothing to review in Block {block} yet</p>
+              </div>
+              <Callout icon="clipboard">
+                This is the <strong>first week of Block {block}</strong>, so there's no earlier week in it to compare with.
+              </Callout>
+            </Card>
+          )}
+
           {collapsed(before, 0)}
           {openIndex >= 0 && (
             <WorkoutEditor
@@ -391,6 +605,11 @@ function Planner({ client, onData, editing }: PlannerProps) {
               workout={form.workouts[openIndex]}
               n={openIndex + 1}
               logged={logged}
+              review={review}
+              dropped={(() => {
+                const before = review && previousWorkout(form.workouts[openIndex], review.week)
+                return before ? droppedExercises(before, form, review.week) : []
+              })()}
               onChange={(workout) => setWorkouts(replaceAt(form.workouts, openIndex, workout))}
               onDuplicate={() => addWorkout(duplicateWorkout(form.workouts[openIndex]))}
               onDelete={() => {
@@ -410,7 +629,7 @@ function Planner({ client, onData, editing }: PlannerProps) {
             Add workout
           </Button>
         </div>
-        {previous?.finishedOn && <PreviousWeek client={client} week={previous} />}
+        {review?.week.finishedOn && <PreviousWeek client={client} week={review.week} />}
       </div>
 
       {editing && (

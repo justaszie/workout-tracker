@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
-  blocksOf, clientStatus, compareWithWeek, formatDate, liftTrend, pastWeeks, weekDates, lastActivityText, loadDifference, missedReps, plannedText, safeUrl,
+  blocksOf, clientStatus, compareWithWeek, droppedExercises, exerciseResult, lastSetText, previousExercise, formatDate, liftTrend, pastWeeks, weekDates, lastActivityText, loadDifference, missedReps, plannedText, safeUrl,
   statusLabel, waitingText, weekSummary, workoutState,
   type Client, type Exercise, type Week, type Workout,
 } from './model.ts'
@@ -252,5 +252,71 @@ describe('editing a published week', () => {
       { kind: 'changed', title: 'Overhead press · Upper', detail: '47.5 kg → 45 kg' },
       { kind: 'added', title: 'Face pull added to Upper', detail: '3 × 10, no target' },
     ])
+  })
+})
+
+describe('last week in the plan', () => {
+  const previous = week({
+    workouts: [
+      workout({ id: 'w1', name: 'Upper A', exercises: [
+        exercise({ id: 'e1', name: 'Bench press' }),
+        exercise({ id: 'e2', name: 'Lateral raise' }),
+        exercise({ id: 'e3', name: 'Dumbbell fly' }),
+      ] }),
+      workout({ id: 'w2', name: 'Lower A', exercises: [exercise({ id: 'e4', name: 'Back squat' })] }),
+    ],
+  })
+
+  it('finds an exercise by id, then by name in the same workout, then anywhere', () => {
+    const upper = { id: 'w1', name: 'Upper A' }
+    assert.equal(previousExercise({ id: 'e2', name: 'Renamed' }, upper, previous)?.id, 'e2')
+    assert.equal(previousExercise({ id: 'new', name: ' lateral RAISE ' }, upper, previous)?.id, 'e2')
+    assert.equal(previousExercise({ id: 'new', name: 'Back squat' }, upper, previous)?.id, 'e4')
+    assert.equal(previousExercise({ id: 'new', name: 'Face pull' }, upper, previous), undefined)
+    assert.equal(previousExercise({ id: 'new', name: '' }, upper, previous), undefined)
+  })
+
+  it('lists exercises the plan dropped', () => {
+    const form = copyWeek(previous)
+    form.workouts[0].exercises.splice(2, 1)
+    assert.deepEqual(droppedExercises(previous.workouts[0], form, previous).map((it) => it.name), ['Dumbbell fly'])
+    assert.deepEqual(droppedExercises(previous.workouts[1], form, previous), [])
+  })
+
+  it('flags missed reps before RPE, and shows every set', () => {
+    const result = exerciseResult(exercise({ load: { type: 'rpe', rpe: 8 }, log: log([10, 9, 7], 9, 22) }))
+    assert.equal(result.flag, 'missedReps')
+    assert.equal(result.repsShort, 4)
+    assert.equal(result.lastSetOnly, true)
+    assert.deepEqual(result.sets, [
+      { reps: 10, weightKg: null, rpe: null, missed: false, aboveRpe: false },
+      { reps: 9, weightKg: null, rpe: null, missed: true, aboveRpe: false },
+      { reps: 7, weightKg: 22, rpe: 9, missed: true, aboveRpe: true },
+    ])
+  })
+
+  it('has nothing more to show when the last set says it all', () => {
+    const result = exerciseResult(exercise({ load: { type: 'rpe', rpe: 8 }, log: log([10, 10, 10], 9) }))
+    assert.equal(result.flag, 'aboveRpe')
+    assert.equal(result.sets, null)
+    assert.equal(exerciseResult(exercise({ log: log() })).flag, null)
+    assert.equal(exerciseResult(exercise()).flag, 'notLogged')
+  })
+
+  it('notices weights that changed from set to set', () => {
+    const perSet = [{ weightKg: 8, rpe: 7 }, { weightKg: 9, rpe: 8 }, { weightKg: 10, rpe: 9 }]
+    const varied = exerciseResult(exercise({ log: { ...log([10, 10, 10], 9, 10), perSet } }))
+    assert.equal(varied.flag, 'weightVaried')
+    assert.equal(varied.lastSetOnly, false)
+    assert.deepEqual(varied.sets?.map((set) => set.weightKg), [8, 9, 10])
+    const same = perSet.map((set) => ({ ...set, weightKg: 10 }))
+    const steady = exerciseResult(exercise({ log: { ...log([10, 10, 10], 9, 10), perSet: same } }))
+    assert.equal(steady.flag, null)
+    assert.equal(steady.sets?.length, 3)
+  })
+
+  it('writes the last set without a weight for bodyweight work', () => {
+    assert.equal(lastSetText(log([10], 7, null)), 'RPE 7')
+    assert.equal(lastSetText(log([10], 9, 62.5)), '62.5 kg · RPE 9')
   })
 })
