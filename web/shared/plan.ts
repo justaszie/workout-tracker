@@ -19,7 +19,8 @@ export function blankPlan(title = 'Block 1 · Week 1'): PlanForm {
   return { title, purpose: '', workouts: [blankWorkout('Workout 1')] }
 }
 
-function toPlanExercise(exercise: Exercise): PlanExercise {
+/** A published exercise as builder fields, keeping its id. */
+export function toPlanExercise(exercise: Exercise): PlanExercise {
   const { load, resources } = exercise
   return {
     id: exercise.id,
@@ -100,7 +101,8 @@ export function planErrors(form: PlanForm): string[] {
   return errors
 }
 
-function parseTitle(title: string) {
+/** The block and week number in a title like "Block 2 · Week 4", or null. */
+export function parseTitle(title: string) {
   const match = /block\s*(\d+)\D+week\s*(\d+)/i.exec(title)
   return match && { block: Number(match[1]), number: Number(match[2]) }
 }

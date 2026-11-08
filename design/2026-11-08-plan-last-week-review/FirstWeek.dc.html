@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Plan first week of a block</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/workoutcoach/tokens.css">
+<link rel="stylesheet" href="ds/workoutcoach/components/bundle.css">
+<script src="ds/workoutcoach/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#C8102E}a:hover{color:#9E0B22}
+</style>
+</helmet>
+<div class="shell" style="font-family: Roboto, system-ui, sans-serif; color: var(--ink); background: var(--paper);">
+<x-import component-from-global-scope="WorkoutCoach.NavRail" items="{{nav}}" title="Workout Coach"></x-import>
+<main class="main">
+<div class="page">
+<x-import component-from-global-scope="WorkoutCoach.Breadcrumbs" items="{{crumbs}}"></x-import>
+
+<div class="page-header">
+<div class="page-title-stack">
+<h1>Plan next week</h1>
+<p class="subtitle">For Alex Petrauskas · starts Block 3</p>
+</div>
+<div class="header-actions">
+<x-import component-from-global-scope="WorkoutCoach.Button" variant="outline">Save draft</x-import>
+<x-import component-from-global-scope="WorkoutCoach.Button" icon="send">Publish to Alex</x-import>
+</div>
+</div>
+
+<x-import component-from-global-scope="WorkoutCoach.Card" label="Week details" padded="{{yes}}">
+<div class="week-fields">
+<x-import component-from-global-scope="WorkoutCoach.TextField" label="Week title" class-name="field-title" default-value="Block 3 · Week 1"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.TextField" label="Purpose (shown to client)" class-name="field-purpose" default-value="New block: find your working weights"></x-import>
+</div>
+</x-import>
+
+<x-import component-from-global-scope="WorkoutCoach.Card" label="Last week" padded="{{yes}}">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<h2 style="font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: 0.15px;">Last week</h2>
+<p class="muted small">Nothing to review in Block 3 yet</p>
+</div>
+<x-import component-from-global-scope="WorkoutCoach.Callout" icon="clipboard">This is the <strong>first week of Block 3</strong>, so there's no earlier week to compare with. Alex's results show here once Week 1 is logged.</x-import>
+<x-import component-from-global-scope="WorkoutCoach.Button" variant="text" size="compact" icon="arrow" icon-position="right">Compare with Block 2 · Week 4 instead</x-import>
+</x-import>
+
+<x-import component-from-global-scope="WorkoutCoach.Card" label="Workout 1" padded="{{yes}}">
+<div class="editor-head">
+<x-import component-from-global-scope="WorkoutCoach.NumberBadge" active="{{yes}}">1</x-import>
+<input aria-label="Workout 1 name" class="workout-name" value="Upper A" readonly>
+<span class="muted small">3 exercises</span>
+<div class="icon-row">
+<x-import component-from-global-scope="WorkoutCoach.IconButton" icon="copy" icon-size="{{iconSize}}" label="Duplicate workout"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.IconButton" icon="trash" icon-size="{{iconSize}}" label="Delete workout"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.IconButton" icon="collapse" icon-size="{{iconSize}}" label="Collapse workout"></x-import>
+</div>
+</div>
+<div class="table-scroll exercises-scroll">
+<div class="exercises">
+<div class="exercise-grid exercise-labels" aria-hidden="true">
+<span></span><span>Exercise</span><span>Sets</span><span>Reps</span><span>Target</span><span></span><span></span>
+</div>
+<sc-for list="{{plan}}" as="ex" hint-placeholder-count="3">
+<div class="exercise">
+<div class="exercise-grid">
+<span class="grip" aria-hidden="true"><x-import component-from-global-scope="WorkoutCoach.GripIcon"></x-import></span>
+<x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Exercise name" variant="strong" default-value="{{ex.name}}"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Sets" center="{{yes}}" default-value="{{ex.sets}}"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Reps" center="{{yes}}" default-value="{{ex.reps}}"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.SegmentedControl" label="Target type" options="{{targetTypes}}" value="rpe" on-change="{{noop}}"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Target RPE" unit="RPE" unit-position="left" default-value="{{ex.rpe}}"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.IconButton" icon="trash" label="Remove exercise"></x-import>
+</div>
+<div class="exercise-extra">
+<span></span>
+<x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Note for client" variant="quiet" placeholder="Note for client (optional)" default-value="{{ex.note}}"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Video or guide link" variant="quiet" icon="link" placeholder="Video or guide link (optional)"></x-import>
+<span></span>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+<x-import component-from-global-scope="WorkoutCoach.Button" variant="text" size="compact" icon="plus">Add exercise</x-import>
+</x-import>
+
+<x-import component-from-global-scope="WorkoutCoach.Button" variant="outline" icon="plus" class-name="self-start">Add workout</x-import>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      yes: true, iconSize: 22,
+      noop: () => {},
+      plan: [
+        { name: 'Bench press', sets: '3', reps: '8', rpe: '7', note: 'Pick a weight you could do 2 more reps with' },
+        { name: 'Chest-supported row', sets: '3', reps: '10', rpe: '7', note: '' },
+        { name: 'Landmine press', sets: '3', reps: '10', rpe: '7', note: '' }
+      ],
+      nav: [
+        { label: 'Clients', icon: 'clients', to: '#', current: true },
+        { label: 'Library', icon: 'library', to: '#' },
+        { label: 'Settings', icon: 'settings', to: '#' }
+      ],
+      crumbs: [
+        { label: 'Clients', to: '#' },
+        { label: 'Alex Petrauskas', to: '#' },
+        { label: 'Plan next week' }
+      ],
+      targetTypes: [
+        { value: 'kg', label: 'Load' },
+        { value: 'rpe', label: 'RPE' },
+        { value: 'none', label: 'None' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

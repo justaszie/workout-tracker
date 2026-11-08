@@ -571,6 +571,99 @@ h1 {
 .list-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 14px 20px; border-bottom: 1px solid var(--grey-95); }
 .list-row-title { font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: 0.15px; }
 
+/* Last week, under each exercise of the plan. One row: values are cut off before the chip and button wrap. */
+.last-week-row { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; }
+
+.last-week {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 44px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: 0.1px;
+}
+
+.last-week strong, .dropped strong { color: var(--ink); font-weight: 500; }
+.last-week strong.flagged, .last-week .flagged { color: var(--red); font-weight: 500; }
+.last-week-values { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 16px; white-space: nowrap; }
+.last-week-values > * { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.last-week .eyebrow, .dropped .eyebrow { flex: none; font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.5px; }
+.last-week-actions { flex: none; display: flex; align-items: center; gap: 8px; }
+.last-week-new { gap: 8px; padding: 0 12px; background: transparent; border: 1px dashed var(--outline-muted); }
+
+.sets-toggle {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--outline);
+  border-radius: 16px;
+  background: var(--white);
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+}
+
+.sets-toggle:hover { background: var(--grey-95); }
+.sets-toggle.open { border-color: var(--red-container); background: var(--red-container); color: var(--on-red-container); }
+
+.sets-panel {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  padding: 16px;
+  border: 1px solid var(--grey-90);
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--ink);
+  box-shadow: 0 6px 24px rgba(27, 27, 31, 0.14);
+}
+
+.sets-panel:popover-open { display: flex; flex-direction: column; gap: 12px; }
+.sets-panel .stack { gap: 2px; }
+.sets-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 18px; }
+.sets-table th {
+  padding: 0 0 6px;
+  border-bottom: 1px solid var(--grey-90);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-align: right;
+  color: var(--ink-muted);
+}
+.sets-table td { padding: 8px 0; border-bottom: 1px solid var(--grey-95); text-align: right; }
+.sets-table th:first-child, .sets-table td:first-child { text-align: left; }
+.sets-table .flagged { font-weight: 500; }
+.sets-note { padding: 8px 12px; border-radius: 8px; background: var(--grey-95); }
+
+.dropped {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  min-height: 56px;
+  padding: 6px 12px 6px 44px;
+  border: 1px dashed var(--outline-muted);
+  border-radius: 12px;
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: 0.1px;
+}
+.dropped-name { font-size: 14px; font-weight: 500; color: var(--ink); }
+.dropped-space { flex: 1 1 0; min-width: 0; }
+
 .glance h2 { font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: 0.15px; }
 .glance p.small { margin-top: 2px; }
 .flag-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }

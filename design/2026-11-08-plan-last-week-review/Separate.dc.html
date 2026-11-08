@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Plan next week, separate review</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/workoutcoach/tokens.css">
+<link rel="stylesheet" href="ds/workoutcoach/components/bundle.css">
+<script src="ds/workoutcoach/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#C8102E}a:hover{color:#9E0B22}
+.sets-toggle{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid var(--outline);border-radius:16px;background:var(--white);color:var(--red);font-size:13px;font-weight:500;letter-spacing:0.1px;white-space:nowrap}
+.sets-toggle:hover{background:var(--grey-95)}
+.sets-toggle[aria-expanded=true]{background:var(--red-container);border-color:var(--red-container);color:var(--on-red-container)}
+</style>
+</helmet>
+<div class="shell" style="font-family: Roboto, system-ui, sans-serif; color: var(--ink); background: var(--paper);">
+<x-import component-from-global-scope="WorkoutCoach.NavRail" items="{{nav}}" title="Workout Coach"></x-import>
+<main class="main">
+<div class="page">
+<x-import component-from-global-scope="WorkoutCoach.Breadcrumbs" items="{{crumbs}}"></x-import>
+
+<div class="page-header">
+<div class="page-title-stack">
+<h1>Plan next week</h1>
+<p class="subtitle">For Alex Petrauskas · follows Block 2 · Week 3</p>
+</div>
+<div class="header-actions">
+<x-import component-from-global-scope="WorkoutCoach.Button" variant="outline">Save draft</x-import>
+<x-import component-from-global-scope="WorkoutCoach.Button" icon="send">Publish to Alex</x-import>
+</div>
+</div>
+
+<x-import component-from-global-scope="WorkoutCoach.Card" label="Week details" padded="{{yes}}">
+<div class="week-fields">
+<x-import component-from-global-scope="WorkoutCoach.TextField" label="Week title" class-name="field-title" default-value="Block 2 · Week 4"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.TextField" label="Purpose (shown to client)" class-name="field-purpose" default-value="Last heavy week before the deload"></x-import>
+</div>
+<x-import component-from-global-scope="WorkoutCoach.Callout" icon="copy">Copied from <strong>Block 2 · Week 3</strong>. Change what's different.</x-import>
+</x-import>
+
+<x-import component-from-global-scope="WorkoutCoach.Card" label="Last week" clip="{{yes}}">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 20px;">
+<div class="grow" style="display: flex; flex-direction: column; gap: 2px;">
+<h2 style="font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: 0.15px;">Last week: Block 2 · Week 3</h2>
+<p class="muted small">Mon 26 Oct to Sun 1 Nov · 2 of 3 done, Upper B partly · 4 flags</p>
+</div>
+<div style="width: 360px; max-width: 100%;">
+<x-import component-from-global-scope="WorkoutCoach.SegmentedControl" label="Workout from last week" options="{{workoutTabs}}" value="{{tab}}" on-change="{{pickTab}}"></x-import>
+</div>
+<x-import component-from-global-scope="WorkoutCoach.IconButton" icon="collapse" icon-size="{{iconSize}}" label="Collapse last week"></x-import>
+</div>
+
+<div class="table-scroll">
+<div style="min-width: 900px; --cols: minmax(190px, 1.3fr) 130px 150px 120px minmax(170px, 1fr) minmax(150px, 0.9fr);">
+<div class="row-head row-head-tinted">
+<span>Exercise</span><span>Planned</span><span>Last set</span><span>Reps</span><span>Result</span><span>In Week 4</span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="5">
+<div style="border-bottom: 1px solid var(--grey-95);">
+<div class="row row-center" style="border-bottom: 0;">
+<span class="medium {{r.nameClass}}">{{r.name}}</span>
+<span>{{r.planned}}</span>
+<span>{{r.lastKg}} <span class="{{r.rpeClass}}">{{r.lastRpe}}</span></span>
+<span class="{{r.repsClass}}">{{r.reps}}</span>
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+<sc-if value="{{r.hasFlag}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="WorkoutCoach.Chip" tone="{{r.flagTone}}" icon="{{r.flagIcon}}">{{r.flagText}}</x-import></sc-if>
+<sc-if value="{{r.hasSets}}" hint-placeholder-val="{{false}}"><button type="button" class="sets-toggle" aria-expanded="{{r.openAttr}}" onClick="{{r.toggle}}">{{r.setsLabel}}</button></sc-if>
+<sc-if value="{{r.ok}}" hint-placeholder-val="{{false}}"><span class="muted">As planned</span></sc-if>
+</span>
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+<sc-if value="{{r.kept}}" hint-placeholder-val="{{true}}"><span>{{r.now}}</span></sc-if>
+<sc-if value="{{r.dropped}}" hint-placeholder-val="{{false}}">
+<x-import component-from-global-scope="WorkoutCoach.Chip" tone="grey">Not planned</x-import>
+<x-import component-from-global-scope="WorkoutCoach.Button" variant="text" size="sm" icon="plus">Add back</x-import>
+</sc-if>
+</span>
+</div>
+<sc-if value="{{r.isOpen}}" hint-placeholder-val="{{false}}">
+<div style="margin: 0 20px 14px; padding: 12px 16px; border-radius: 12px; background: var(--paper); display: flex; flex-wrap: wrap; gap: 12px 32px; align-items: flex-start;">
+<div style="display: grid; grid-template-columns: 56px 64px 80px 56px; column-gap: 12px; font-size: 13px; line-height: 18px;">
+<span class="eyebrow" style="font-size: 11px; font-weight: 500; padding-bottom: 6px;">Set</span>
+<span class="eyebrow right" style="font-size: 11px; font-weight: 500; padding-bottom: 6px;">Reps</span>
+<span class="eyebrow right" style="font-size: 11px; font-weight: 500; padding-bottom: 6px;">Weight</span>
+<span class="eyebrow right" style="font-size: 11px; font-weight: 500; padding-bottom: 6px;">RPE</span>
+<sc-for list="{{r.setRows}}" as="s" hint-placeholder-count="3">
+<span class="muted" style="padding: 6px 0; border-top: 1px solid var(--grey-90);">{{s.label}}</span>
+<span class="right {{s.repsClass}}" style="padding: 6px 0; border-top: 1px solid var(--grey-90);">{{s.reps}}</span>
+<span class="right" style="padding: 6px 0; border-top: 1px solid var(--grey-90);">{{s.kg}}</span>
+<span class="right {{s.rpeClass}}" style="padding: 6px 0; border-top: 1px solid var(--grey-90);">{{s.rpe}}</span>
+</sc-for>
+</div>
+<div style="flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 8px;">
+<sc-if value="{{r.lastOnly}}" hint-placeholder-val="{{false}}"><span class="caption">Alex logged weight and RPE for the last set only.</span></sc-if>
+<sc-if value="{{r.hasClientNote}}" hint-placeholder-val="{{false}}">
+<span class="eyebrow" style="font-size: 11px; font-weight: 500;">Alex's note</span>
+<span class="small">“{{r.clientNote}}”</span>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-for>
+<sc-if value="{{hasNew}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; align-items: center; gap: 8px; padding: 14px 20px; background: var(--paper);" class="muted small">
+<x-import component-from-global-scope="WorkoutCoach.Icon" name="plus" size="{{smallIcon}}"></x-import>
+<span>New in Week 4, no history: <span class="medium" style="color: var(--ink);">{{newText}}</span></span>
+</div>
+</sc-if>
+</div>
+</div>
+</x-import>
+
+<x-import component-from-global-scope="WorkoutCoach.Card" label="Workout 1" padded="{{yes}}">
+<div class="editor-head">
+<x-import component-from-global-scope="WorkoutCoach.NumberBadge" active="{{yes}}">1</x-import>
+<input aria-label="Workout 1 name" class="workout-name" value="Upper A" readonly>
+<span class="muted small">5 exercises</span>
+<div class="icon-row">
+<x-import component-from-global-scope="WorkoutCoach.IconButton" icon="copy" icon-size="{{iconSize}}" label="Duplicate workout"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.IconButton" icon="trash" icon-size="{{iconSize}}" label="Delete workout"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.IconButton" icon="collapse" icon-size="{{iconSize}}" label="Collapse workout"></x-import>
+</div>
+</div>
+<div class="table-scroll exercises-scroll">
+<div class="exercises">
+<div class="exercise-grid exercise-labels" aria-hidden="true">
+<span></span><span>Exercise</span><span>Sets</span><span>Reps</span><span>Target</span><span></span><span></span>
+</div>
+<sc-for list="{{plan}}" as="ex" hint-placeholder-count="5">
+<div class="exercise">
+<div class="exercise-grid">
+<span class="grip" aria-hidden="true"><x-import component-from-global-scope="WorkoutCoach.GripIcon"></x-import></span>
+<x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Exercise name" variant="strong" default-value="{{ex.name}}"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Sets" center="{{yes}}" default-value="{{ex.sets}}"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Reps" center="{{yes}}" default-value="{{ex.reps}}"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.SegmentedControl" label="Target type" options="{{targetTypes}}" value="{{ex.type}}" on-change="{{noop}}"></x-import>
+<sc-if value="{{ex.isKg}}" hint-placeholder-val="{{true}}"><x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Load in kg" unit="kg" default-value="{{ex.kg}}"></x-import></sc-if>
+<sc-if value="{{ex.isRpe}}" hint-placeholder-val="{{false}}"><x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Target RPE" unit="RPE" unit-position="left" default-value="{{ex.rpe}}"></x-import></sc-if>
+<sc-if value="{{ex.isNone}}" hint-placeholder-val="{{false}}"><span class="no-target">No target</span></sc-if>
+<x-import component-from-global-scope="WorkoutCoach.IconButton" icon="trash" label="Remove exercise"></x-import>
+</div>
+<div class="exercise-extra">
+<span></span>
+<x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Note for client" variant="quiet" placeholder="Note for client (optional)" default-value="{{ex.note}}"></x-import>
+<x-import component-from-global-scope="WorkoutCoach.Input" aria-label="Video or guide link" variant="quiet" icon="link" placeholder="Video or guide link (optional)"></x-import>
+<span></span>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+<x-import component-from-global-scope="WorkoutCoach.Button" variant="text" size="compact" icon="plus">Add exercise</x-import>
+</x-import>
+
+<x-import component-from-global-scope="WorkoutCoach.Card" label="Other workouts" clip="{{yes}}">
+<div class="list-row">
+<x-import component-from-global-scope="WorkoutCoach.NumberBadge">2</x-import>
+<div class="grow">
+<div class="list-row-title">Lower A</div>
+<div class="small muted">5 exercises · copied from Week 3</div>
+</div>
+<x-import component-from-global-scope="WorkoutCoach.Button" variant="outline" size="sm">Edit</x-import>
+</div>
+<div class="list-row" style="border-bottom: 0;">
+<x-import component-from-global-scope="WorkoutCoach.NumberBadge">3</x-import>
+<div class="grow">
+<div class="list-row-title">Upper B</div>
+<div class="small muted">4 exercises · copied from Week 3</div>
+</div>
+<x-import component-from-global-scope="WorkoutCoach.Button" variant="outline" size="sm">Edit</x-import>
+</div>
+</x-import>
+
+<x-import component-from-global-scope="WorkoutCoach.Button" variant="outline" icon="plus" class-name="self-start">Add workout</x-import>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'upperA', open: 'lat' };
+  }
+  renderVals() {
+    const st = this.state;
+    const set = (label, reps, kg, rpe, missed, hot) => ({
+      label: label, reps: reps, kg: kg, rpe: rpe,
+      repsClass: missed ? 'flagged' : '', rpeClass: hot ? 'flagged' : ''
+    });
+    const red = (icon, text) => ({ tone: 'red', icon: icon, text: text });
+    const weeks = {
+      upperA: {
+        rows: [
+          { id: 'bench', name: 'Bench press', planned: '4 × 6 · 70 kg', kg: '70 kg', rpe: '· RPE 8', reps: '6 · 6 · 6 · 6', now: '4 × 6 · 72.5 kg' },
+          { id: 'row', name: 'Barbell row', planned: '4 × 8 · RPE 8', kg: '62.5 kg', rpe: '· RPE 9', rpeHot: true, reps: '8 · 8 · 8 · 8', flag: red('up', 'RPE above target'), now: '4 × 8 · RPE 8' },
+          { id: 'incline', name: 'Incline dumbbell press', planned: '3 × 10 · 22 kg', kg: '22 kg', rpe: '· RPE 9', reps: '10 · 9 · 7', missed: true, flag: red('alert', '4 reps short'), lastOnly: true,
+            clientNote: 'Shoulder felt tight on the last set',
+            sets: [set('Set 1', '10', '—', '—'), set('Set 2', '9', '—', '—', true), set('Set 3', '7', '22 kg', '9', true)], now: '3 × 10 · 22 kg' },
+          { id: 'lat', name: 'Lateral raise', planned: '3 × 15 · RPE 9', kg: '10 kg', rpe: '· RPE 9', reps: '15 · 15 · 15', flag: { tone: 'amber', icon: 'arrow', text: 'Weight changed by set' },
+            sets: [set('Set 1', '15', '8 kg', '7'), set('Set 2', '15', '9 kg', '8'), set('Set 3', '15', '10 kg', '9')], now: '3 × 15 · RPE 9' },
+          { id: 'fly', name: 'Dumbbell fly', planned: '3 × 12 · 12 kg', kg: '12 kg', rpe: '· RPE 7', reps: '12 · 12 · 12', dropped: true }
+        ],
+        newText: 'Face pull'
+      },
+      lowerA: {
+        rows: [
+          { id: 'squat', name: 'Back squat', planned: '4 × 5 · 100 kg', kg: '100 kg', rpe: '· RPE 8', reps: '5 · 5 · 5 · 5', now: '4 × 5 · 102.5 kg' },
+          { id: 'rdl', name: 'Romanian deadlift', planned: '3 × 8 · 80 kg', kg: '80 kg', rpe: '· RPE 9', reps: '8 · 8 · 6', missed: true, flag: red('alert', '2 reps short'), lastOnly: true,
+            sets: [set('Set 1', '8', '—', '—'), set('Set 2', '8', '—', '—'), set('Set 3', '6', '80 kg', '9', true)], now: '3 × 8 · 77.5 kg' },
+          { id: 'split', name: 'Split squat', planned: '3 × 10 per side · RPE 8', kg: '16 kg', rpe: '· RPE 8', reps: '10 · 10 · 10', now: '3 × 10 per side · RPE 8' },
+          { id: 'curl', name: 'Leg curl', planned: '3 × 12 · RPE 8', kg: '35 kg', rpe: '· RPE 8', reps: '12 · 12 · 12', now: '3 × 12 · RPE 8' },
+          { id: 'calf', name: 'Calf raise', planned: '3 × 15', kg: '40 kg', rpe: '· RPE 7', reps: '15 · 15 · 15', now: '3 × 15' }
+        ],
+        newText: ''
+      },
+      upperB: {
+        rows: [
+          { id: 'ohp', name: 'Overhead press', planned: '4 × 6 · 45 kg', kg: '45 kg', rpe: '· RPE 8', reps: '6 · 6 · 6 · 6', now: '4 × 6 · 47.5 kg' },
+          { id: 'pull', name: 'Pull-up', planned: '4 × 6 · RPE 8', kg: 'Bodyweight', rpe: '· RPE 8', reps: '6 · 6 · 5 · 5', missed: true, flag: red('alert', '2 reps short'), lastOnly: true,
+            sets: [set('Set 1', '6', '—', '—'), set('Set 2', '6', '—', '—'), set('Set 3', '5', '—', '—', true), set('Set 4', '5', 'Bodyweight', '8', true)], now: '4 × 6 · RPE 8' },
+          { id: 'dip', name: 'Dip', planned: '3 × 10', kg: '', rpe: '', reps: '', notLogged: true, now: '3 × 10' },
+          { id: 'curlb', name: 'Hammer curl', planned: '3 × 12 · 14 kg', kg: '', rpe: '', reps: '', notLogged: true, dropped: true }
+        ],
+        newText: ''
+      }
+    };
+    const current = weeks[st.tab];
+    const rows = current.rows.map((r) => {
+      const isOpen = !!r.sets && st.open === r.id;
+      const flag = r.notLogged ? { tone: 'grey', icon: 'minus', text: 'Not logged' } : r.flag;
+      return {
+        name: r.name, nameClass: r.dropped ? 'muted' : '', planned: r.planned,
+        lastKg: r.notLogged ? '—' : r.kg, lastRpe: r.rpe, rpeClass: r.rpeHot ? 'flagged' : '',
+        reps: r.notLogged ? '—' : r.reps, repsClass: r.missed ? 'flagged' : '',
+        hasFlag: !!flag, flagTone: flag ? flag.tone : 'grey', flagIcon: flag ? flag.icon : 'alert', flagText: flag ? flag.text : '',
+        ok: !flag && !r.sets,
+        hasSets: !!r.sets, setsLabel: r.sets ? (isOpen ? 'Hide sets' : 'All ' + r.sets.length + ' sets') : '',
+        setRows: r.sets || [], lastOnly: !!r.lastOnly,
+        hasClientNote: !!r.clientNote, clientNote: r.clientNote || '',
+        isOpen: isOpen, openAttr: isOpen ? 'true' : 'false',
+        toggle: () => this.setState({ open: isOpen ? null : r.id }),
+        kept: !r.dropped, dropped: !!r.dropped, now: r.now || ''
+      };
+    });
+    const plan = [
+      { name: 'Bench press', sets: '4', reps: '6', type: 'kg', kg: '72.5', rpe: '', note: '+2.5 kg, same reps' },
+      { name: 'Barbell row', sets: '4', reps: '8', type: 'rpe', kg: '', rpe: '8', note: '' },
+      { name: 'Incline dumbbell press', sets: '3', reps: '10', type: 'kg', kg: '22', rpe: '', note: '' },
+      { name: 'Lateral raise', sets: '3', reps: '15', type: 'rpe', kg: '', rpe: '9', note: '' },
+      { name: 'Face pull', sets: '3', reps: '15', type: 'none', kg: '', rpe: '', note: 'Slow on the way back' }
+    ].map((e) => Object.assign({}, e, { isKg: e.type === 'kg', isRpe: e.type === 'rpe', isNone: e.type === 'none' }));
+    return {
+      yes: true, iconSize: 22, smallIcon: 18,
+      noop: () => {},
+      tab: st.tab,
+      pickTab: (value) => this.setState({ tab: value }),
+      workoutTabs: [
+        { value: 'upperA', label: 'Upper A' },
+        { value: 'lowerA', label: 'Lower A' },
+        { value: 'upperB', label: 'Upper B' }
+      ],
+      rows: rows,
+      hasNew: !!current.newText, newText: current.newText,
+      plan: plan,
+      nav: [
+        { label: 'Clients', icon: 'clients', to: '#', current: true },
+        { label: 'Library', icon: 'library', to: '#' },
+        { label: 'Settings', icon: 'settings', to: '#' }
+      ],
+      crumbs: [
+        { label: 'Clients', to: '#' },
+        { label: 'Alex Petrauskas', to: '#' },
+        { label: 'Plan next week' }
+      ],
+      targetTypes: [
+        { value: 'kg', label: 'Load' },
+        { value: 'rpe', label: 'RPE' },
+        { value: 'none', label: 'None' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
