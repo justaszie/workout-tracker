@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { useMemo, useState, type DragEvent } from 'react'
 import {
   aboveTargetRpe, currentWeek, droppedExercises, exerciseResult, firstName, formatDate, formatKg, gapsText,
   isFlagged, lastSetText, missedReps, plannedText, previousExercise, previousWorkout, repsText, weekSummary,
@@ -16,6 +16,8 @@ import {
   type IconName, type Option,
 } from '../components/index.ts'
 import { navigate } from '../router.tsx'
+import { weekPath } from './History.tsx'
+import { SetsButton } from './SetsPanel.tsx'
 
 const TARGET_TYPES: Option[] = [
   { value: 'kg', label: 'Load' },
@@ -42,79 +44,6 @@ const resultChip: Record<'missedReps' | 'aboveRpe' | 'weightVaried', { tone: Chi
   missedReps: { tone: 'red', icon: 'alert' },
   aboveRpe: { tone: 'red', icon: 'up' },
   weightVaried: { tone: 'amber', icon: 'arrow' },
-}
-
-function SetsButton({ exercise, children }: { exercise: Exercise; children: ReactNode }) {
-  const id = useId()
-  const button = useRef<HTMLButtonElement>(null)
-  const panel = useRef<HTMLDivElement>(null)
-  const [open, setOpen] = useState(false)
-
-  useEffect(() => {
-    const box = panel.current!
-    const toggle = (event: Event) => setOpen((event as ToggleEvent).newState === 'open')
-    box.addEventListener('toggle', toggle)
-    return () => box.removeEventListener('toggle', toggle)
-  }, [])
-
-  // The panel sits in the top layer, so it isn't clipped by the scrolling exercise list; keep it under the button.
-  useEffect(() => {
-    if (!open) return
-    const place = () => {
-      const anchor = button.current!.getBoundingClientRect()
-      const box = panel.current!
-      box.style.top = `${anchor.bottom + 8}px`
-      box.style.left = `${Math.max(16, anchor.right - box.offsetWidth)}px`
-    }
-    place()
-    window.addEventListener('resize', place)
-    window.addEventListener('scroll', place, true)
-    return () => {
-      window.removeEventListener('resize', place)
-      window.removeEventListener('scroll', place, true)
-    }
-  }, [open])
-
-  return (
-    <>
-      <button ref={button} type="button" className={`sets-toggle${open ? ' open' : ''}`} popoverTarget={id}>
-        {open ? 'Hide sets' : 'Show all sets'}
-      </button>
-      <div
-        ref={panel} id={id} popover="auto" className="sets-panel" aria-label={`All sets of ${exercise.name}`}
-      >
-        {children}
-      </div>
-    </>
-  )
-}
-
-function SetsPanel({ exercise, review }: { exercise: Exercise; review: Review }) {
-  const { sets, lastSetOnly } = exerciseResult(exercise)
-  const show = (value: number | null, unit = '') => (value == null ? '—' : `${formatKg(value)}${unit}`)
-  return (
-    <>
-      <div className="stack">
-        <span className="medium">{exercise.name} · Week {review.week.number}</span>
-        <span className="caption">Planned {plannedText(exercise)}</span>
-      </div>
-      <table className="sets-table">
-        <thead><tr><th>Set</th><th>Reps</th><th>Weight</th><th>RPE</th></tr></thead>
-        <tbody>
-          {sets?.map((set, i) => (
-            <tr key={i}>
-              <td className="muted">Set {i + 1}</td>
-              <td className={set.missed ? 'flagged' : undefined}>{set.reps}</td>
-              <td>{show(set.weightKg, ' kg')}</td>
-              <td className={set.aboveRpe ? 'flagged' : undefined}>{show(set.rpe)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {lastSetOnly && <p className="caption">{review.client} logged weight and RPE for the last set only.</p>}
-      {exercise.log?.note && <p className="small sets-note">“{exercise.log.note}”</p>}
-    </>
-  )
 }
 
 /** Under an exercise in the plan: what the client did with it in the week being reviewed. */
@@ -159,9 +88,7 @@ function LastWeekStrip({ exercise, review }: { exercise: Exercise | undefined; r
         <div className="last-week-actions">
           {chip && <Chip tone={chip.tone} icon={chip.icon}>{chipText}</Chip>}
           {result.sets && (
-            <SetsButton exercise={exercise}>
-              <SetsPanel exercise={exercise} review={review} />
-            </SetsButton>
+            <SetsButton exercise={exercise} week={review.week} client={review.client} />
           )}
         </div>
       )}
@@ -399,7 +326,7 @@ function PreviousWeek({ client, week }: { client: Client; week: Week }) {
           {week.note && <FlagItem icon="chat" title={`${firstName(client.name)}'s note`}>“{week.note}”</FlagItem>}
         </FlagList>
         <p className="caption">Each exercise in the plan shows its own result from Week {week.number}.</p>
-        <TextLink to={`/clients/${client.id}`}>Open full review</TextLink>
+        <TextLink to={weekPath(client, week)}>Open full review</TextLink>
       </Card>
     </aside>
   )
@@ -436,7 +363,9 @@ function Planner({ client, onData, editing }: PlannerProps) {
   const block = parseTitle(form.title)?.block ?? previous?.block
   const review: Review | undefined = previous && previous.block === block
     ? { week: previous, client: name } : undefined
-  const firstOfBlock = !editing && previous && !review
+  // Nothing to compare with: the first week of a block, or an edited week with no earlier one.
+  const noLastWeek = !review && (editing || previous)
+  const firstOfBlock = (parseTitle(form.title)?.number ?? 1) === 1
 
   const change = (next: PlanForm) => {
     setForm(next)
@@ -586,14 +515,16 @@ function Planner({ client, onData, editing }: PlannerProps) {
             )}
           </Card>
 
-          {firstOfBlock && (
+          {noLastWeek && (
             <Card label="Last week" padded className="glance">
               <div>
                 <h2>Last week</h2>
                 <p className="muted small">Nothing to review in Block {block} yet</p>
               </div>
               <Callout icon="clipboard">
-                This is the <strong>first week of Block {block}</strong>, so there's no earlier week in it to compare with.
+                {firstOfBlock
+                  ? <>This is the <strong>first week of Block {block}</strong>, so there's no earlier week in it to compare with.</>
+                  : <>There's no earlier week in <strong>Block {block}</strong> to compare with.</>}
               </Callout>
             </Card>
           )}

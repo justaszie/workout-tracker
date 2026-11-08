@@ -166,6 +166,14 @@ export function demoSeed(): Data {
   ruta.finishedOn = ruta.lastActivityOn = dayOffset(1)
   const tomas = shortWeek(3, 1, 'Strength intro', 5, 5, 3)
   tomas.lastActivityOn = dayOffset(0)
+  // Greta's first week is finished, so editing her live second week has a last week to compare with.
+  const greta = shortWeek(1, 1, 'Technique focus', 9, 3, 3)
+  greta.finishedOn = greta.lastActivityOn = dayOffset(3)
+  greta.workouts[1].exercises[0].log = log(20, 9, [10, 10, 8], 'Legs were tired from work')
+  greta.workouts[2].exercises[0].log = {
+    ...log(22, 8, all(3, 10)),
+    perSet: [{ weightKg: 18, rpe: 7 }, { weightKg: 20, rpe: 7 }, { weightKg: 22, rpe: 8 }],
+  }
   const mantas = shortWeek(2, 1, 'Rebuild week', 8, 4, 1)
   mantas.lastActivityOn = dayOffset(6)
   return {
@@ -176,7 +184,7 @@ export function demoSeed(): Data {
       client('Lukas Stankevičius', 1),
       client('Tomas Kazlauskas', 90, [tomas]),
       client('Mantas Vaitkus', 30, [mantas]),
-      client('Greta Baltrušaitė', 14, [shortWeek(1, 2, 'Technique focus', 2, 3, 0)]),
+      client('Greta Baltrušaitė', 14, [greta, shortWeek(1, 2, 'Technique focus', 2, 3, 0)]),
     ],
   }
 }
