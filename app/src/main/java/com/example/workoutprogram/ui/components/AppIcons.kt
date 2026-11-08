@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 object AppIcons {
     val Back = strokeIcon("M20 12H4M10 6l-6 6 6 6")
     val Chevron = strokeIcon("M9 18l6-6-6-6")
+    val ChevronLeft = strokeIcon("M15 18l-6-6 6-6")
     val Check = strokeIcon("M20 6L9 17l-5-5", width = 2.5f)
     val CheckBold = strokeIcon("M20 6L9 17l-5-5", width = 2.25f)
     val Flag = strokeIcon("M5 21V4", "M5 4h11l-2 4 2 4H5")

@@ -15,6 +15,7 @@ class WeekApiTest {
     private var contentType: String? = null
     private var authorization: String? = null
     private var body = ""
+    private var responseBody: String? = null
 
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
         createContext("/") { exchange ->
@@ -23,7 +24,9 @@ class WeekApiTest {
             contentType = exchange.requestHeaders.getFirst("Content-Type")
             authorization = exchange.requestHeaders.getFirst("Authorization")
             body = exchange.requestBody.readBytes().decodeToString()
-            exchange.sendResponseHeaders(status, -1)
+            val response = responseBody?.toByteArray()
+            exchange.sendResponseHeaders(status, response?.size?.toLong() ?: -1)
+            response?.let { exchange.responseBody.write(it) }
             exchange.close()
         }
         start()
@@ -71,5 +74,21 @@ class WeekApiTest {
         status = 401
 
         api.saveProgress("w9", "{}")
+    }
+
+    @Test
+    fun pastWeeks_getsTheClientsPastWeeks() {
+        responseBody = "[]"
+
+        assertEquals("[]", api.pastWeeks())
+        assertEquals("GET", method)
+        assertEquals("/api/clients/me/past-weeks", path)
+    }
+
+    @Test(expected = IOException::class)
+    fun pastWeeks_failsWhenTheServerErrors() {
+        status = 500
+
+        api.pastWeeks()
     }
 }

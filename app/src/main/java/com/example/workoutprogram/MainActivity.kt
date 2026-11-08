@@ -14,6 +14,9 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.workoutprogram.ui.history.HistoryScreen
+import com.example.workoutprogram.ui.history.PastWeekScreen
+import com.example.workoutprogram.ui.history.PastWorkoutScreen
 import com.example.workoutprogram.ui.log.LogExerciseScreen
 import com.example.workoutprogram.ui.theme.WorkoutProgramTheme
 import com.example.workoutprogram.ui.week.WeekScreen
@@ -38,6 +41,7 @@ class MainActivity : ComponentActivity() {
 private fun WorkoutApp(viewModel: WeekViewModel = viewModel()) {
     val currentWeek by viewModel.week.collectAsStateWithLifecycle()
     val uploading by viewModel.uploading.collectAsStateWithLifecycle()
+    val history by viewModel.history.collectAsStateWithLifecycle()
     // Keeps scroll positions when coming back from a deeper screen.
     val saved = rememberSaveableStateHolder()
 
@@ -59,6 +63,10 @@ private fun WorkoutApp(viewModel: WeekViewModel = viewModel()) {
                 onOpenWorkout = { viewModel.open(Route.Workout(it)) },
                 onFinishWeek = viewModel::finishWeek,
                 onReopenWeek = viewModel::reopenWeek,
+                onOpenHistory = {
+                    viewModel.open(Route.History)
+                    viewModel.refreshHistory()
+                },
             )
         }
 
@@ -85,6 +93,39 @@ private fun WorkoutApp(viewModel: WeekViewModel = viewModel()) {
                     onBack = viewModel::back,
                     onSave = { viewModel.saveLog(route, it) },
                 )
+            }
+        }
+
+        Route.History -> saved.SaveableStateProvider("history") {
+            HistoryScreen(
+                history = history,
+                onBack = viewModel::back,
+                onRetry = viewModel::refreshHistory,
+                onOpenWeek = { viewModel.open(Route.PastWeek(it)) },
+            )
+        }
+
+        is Route.PastWeek -> {
+            val weeks = history.weeks.orEmpty()
+            val index = weeks.indexOfFirst { it.id == route.weekId }
+            if (index < 0) return
+            saved.SaveableStateProvider("past-week:${route.weekId}") {
+                PastWeekScreen(
+                    week = weeks[index],
+                    older = weeks.getOrNull(index + 1),
+                    newer = weeks.getOrNull(index - 1),
+                    onBack = viewModel::back,
+                    onOpenWorkout = { viewModel.open(Route.PastWorkout(route.weekId, it)) },
+                    onOpenWeek = { viewModel.replace(Route.PastWeek(it)) },
+                )
+            }
+        }
+
+        is Route.PastWorkout -> {
+            val pastWeek = history.weeks?.firstOrNull { it.id == route.weekId } ?: return
+            val workout = pastWeek.workout(route.workoutId) ?: return
+            saved.SaveableStateProvider("past-workout:${route.weekId}:${route.workoutId}") {
+                PastWorkoutScreen(week = pastWeek, workout = workout, onBack = viewModel::back)
             }
         }
     }

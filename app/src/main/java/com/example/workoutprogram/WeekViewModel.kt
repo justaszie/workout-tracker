@@ -13,6 +13,7 @@ import com.example.workoutprogram.data.WeekApi
 import com.example.workoutprogram.data.WeekStore
 import com.example.workoutprogram.data.WeekUploadWorker
 import com.example.workoutprogram.data.parseWeek
+import com.example.workoutprogram.data.parseWeeks
 import com.example.workoutprogram.data.withProgress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
@@ -37,10 +39,16 @@ sealed interface Route {
     data object Week : Route
     data class Workout(val workoutId: String) : Route
     data class Log(val workoutId: String, val exerciseId: String) : Route
+    data object History : Route
+    data class PastWeek(val weekId: String) : Route
+    data class PastWorkout(val weekId: String, val workoutId: String) : Route
 }
 
 /** Why there is no week to show. Once one is cached, failed refreshes go unnoticed. */
 enum class LoadState { Loading, NoWeek, Failed }
+
+/** Past weeks newest first, or null until they have been loaded once. */
+data class PastWeeks(val weeks: List<ProgramWeek>?, val loading: Boolean, val failed: Boolean)
 
 class WeekViewModel(application: Application) : AndroidViewModel(application) {
     private val api = WeekApi(BuildConfig.API_URL, BuildConfig.CLIENT_ID, BuildConfig.API_PASSWORD)
@@ -55,6 +63,9 @@ class WeekViewModel(application: Application) : AndroidViewModel(application) {
     var loadState by mutableStateOf(LoadState.Loading)
         private set
     private var refreshing = false
+
+    private val _history = MutableStateFlow(PastWeeks(weeks = null, loading = false, failed = false))
+    val history: StateFlow<PastWeeks> = _history.asStateFlow()
 
     private val backStack = mutableStateListOf<Route>(Route.Week)
     val route: Route get() = backStack.last()
@@ -97,8 +108,35 @@ class WeekViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Shows the cached past weeks at once, then replaces them with the server's. */
+    fun refreshHistory() {
+        if (_history.value.loading) return
+        _history.update { it.copy(loading = true, failed = false) }
+        viewModelScope.launch {
+            if (_history.value.weeks == null) {
+                val cached = withContext(Dispatchers.IO) { store.loadPastWeeks() }
+                _history.update { it.copy(weeks = it.weeks ?: cached) }
+            }
+            try {
+                val body = withContext(Dispatchers.IO) { api.pastWeeks() }
+                val weeks = parseWeeks(JSONArray(body))
+                withContext(Dispatchers.IO) { store.savePastWeeks(body) }
+                _history.update { it.copy(weeks = weeks, loading = false) }
+            } catch (_: IOException) {
+                _history.update { it.copy(loading = false, failed = true) }
+            } catch (_: JSONException) {
+                _history.update { it.copy(loading = false, failed = true) }
+            }
+        }
+    }
+
     fun open(route: Route) {
         backStack.add(route)
+    }
+
+    /** Swaps the screen on top for [route], so back still leads where it did. */
+    fun replace(route: Route) {
+        backStack[backStack.lastIndex] = route
     }
 
     fun back() {
