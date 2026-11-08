@@ -646,6 +646,7 @@ h1 {
 .sets-table th:first-child, .sets-table td:first-child { text-align: left; }
 .sets-table .flagged { font-weight: 500; }
 .sets-note { padding: 8px 12px; border-radius: 8px; background: var(--grey-95); }
+.result-sets { align-self: flex-start; margin-top: 6px; }
 
 .dropped {
   display: flex;

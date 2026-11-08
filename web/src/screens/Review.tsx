@@ -1,5 +1,5 @@
 import {
-  aboveTargetRpe, compareWithWeek, currentWeek, firstName, formatDate, formatKg, loadDifference, loggedCount,
+  aboveTargetRpe, compareWithWeek, currentWeek, exerciseResult, firstName, formatDate, formatKg, loadDifference, loggedCount,
   missedReps, nextWeekTitle, plannedText, relativeWeekTitle, repsText, safeUrl, setRpesText, setWeightsText, shortWeekTitle, weekSummary,
   weekTitle, workoutState,
   type Client, type Data, type Exercise, type Week, type Workout, type WorkoutState,
@@ -9,6 +9,7 @@ import {
   Table, TableCell, TableRow, type ChipProps, type Column,
 } from '../components/index.ts'
 import { weekPath } from './History.tsx'
+import { SetsButton } from './SetsPanel.tsx'
 
 const stateChip: Record<WorkoutState, { label: string; tone: ChipProps['tone'] }> = {
   done: { label: 'Done', tone: 'green' },
@@ -83,7 +84,15 @@ function weightText(exercise: Exercise) {
   return `${formatKg(weight)} kg (${difference > 0 ? '+' : '−'}${formatKg(Math.abs(difference))})`
 }
 
-function ResultRow({ exercise, previous }: { exercise: Exercise; previous: Week | undefined }) {
+interface ResultRowProps {
+  exercise: Exercise
+  week: Week
+  previous: Week | undefined
+  /** The client's first name. */
+  client: string
+}
+
+function ResultRow({ exercise, week, previous, client }: ResultRowProps) {
   const { load, log } = exercise
   const comparison = compareWithWeek(exercise, previous)
   const versus = previous && (
@@ -98,7 +107,12 @@ function ResultRow({ exercise, previous }: { exercise: Exercise; previous: Week 
   )
   return (
     <TableRow align="start">
-      <TableCell tone="medium">{exercise.name}</TableCell>
+      <TableCell tone="medium" stack>
+        <span>{exercise.name}</span>
+        {exerciseResult(exercise).sets && (
+          <span className="result-sets"><SetsButton exercise={exercise} week={week} client={client} /></span>
+        )}
+      </TableCell>
       <TableCell tone="muted">{plannedText(exercise)}</TableCell>
       {log ? (
         <>
@@ -156,7 +170,15 @@ function PlanRow({ exercise }: { exercise: Exercise }) {
   )
 }
 
-function WorkoutCard({ week, previous, workout, n }: { week: Week; previous: Week | undefined; workout: Workout; n: number }) {
+interface WorkoutCardProps {
+  week: Week
+  previous: Week | undefined
+  workout: Workout
+  n: number
+  client: string
+}
+
+function WorkoutCard({ week, previous, workout, n, client }: WorkoutCardProps) {
   const chip = stateChip[workoutState(week, workout)]
   const album = safeUrl(workout.albumLink)
   const logged = loggedCount(workout) > 0
@@ -173,7 +195,9 @@ function WorkoutCard({ week, previous, workout, n }: { week: Week; previous: Wee
       </div>
       {logged ? (
         <Table label={`${workout.name} results`} columns={columns(previous, week)} minWidth={previous ? 1040 : 880} tinted>
-          {workout.exercises.map((exercise) => <ResultRow key={exercise.id} exercise={exercise} previous={previous} />)}
+          {workout.exercises.map((exercise) => (
+            <ResultRow key={exercise.id} exercise={exercise} week={week} previous={previous} client={client} />
+          ))}
         </Table>
       ) : workout.exercises.length > 0 && (
         <Table label={`${workout.name} plan`} columns={PLAN_COLUMNS} minWidth={800} tinted>
@@ -260,7 +284,7 @@ function WeekResults({ client, week }: { client: Client; week: Week }) {
       </div>
 
       {week.workouts.map((workout, i) => (
-        <WorkoutCard key={workout.id} week={week} previous={previous} workout={workout} n={i + 1} />
+        <WorkoutCard key={workout.id} week={week} previous={previous} workout={workout} n={i + 1} client={firstName(client.name)} />
       ))}
     </>
   )
