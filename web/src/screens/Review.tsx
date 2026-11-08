@@ -1,6 +1,6 @@
 import {
   aboveTargetRpe, compareWithWeek, currentWeek, firstName, formatDate, formatKg, loadDifference, loggedCount,
-  missedReps, nextWeekTitle, plannedText, relativeWeekTitle, repsText, safeUrl, shortWeekTitle, weekSummary,
+  missedReps, nextWeekTitle, plannedText, relativeWeekTitle, repsText, safeUrl, setRpesText, setWeightsText, shortWeekTitle, weekSummary,
   weekTitle, workoutState,
   type Client, type Data, type Exercise, type Week, type Workout, type WorkoutState,
 } from '../../shared/model.ts'
@@ -102,9 +102,13 @@ function ResultRow({ exercise, previous }: { exercise: Exercise; previous: Week 
       <TableCell tone="muted">{plannedText(exercise)}</TableCell>
       {log ? (
         <>
-          <TableCell tone={(loadDifference(exercise) ?? 0) > 0 ? 'bold' : undefined}>{weightText(exercise)}</TableCell>
-          <TableCell tone={aboveTargetRpe(exercise) ? 'flagged' : undefined}>
-            {load.type === 'rpe' ? `${log.rpe} (target ${load.rpe})` : log.rpe}
+          <TableCell tone={(loadDifference(exercise) ?? 0) > 0 ? 'bold' : undefined} stack>
+            <span>{weightText(exercise)}</span>
+            {setWeightsText(log) && <span className="caption">Sets: {setWeightsText(log)}</span>}
+          </TableCell>
+          <TableCell tone={aboveTargetRpe(exercise) ? 'flagged' : undefined} stack>
+            <span>{load.type === 'rpe' ? `${log.rpe} (target ${load.rpe})` : log.rpe}</span>
+            {setRpesText(log) && <span className="caption">Sets: {setRpesText(log)}</span>}
           </TableCell>
           <TableCell tone={missedReps(exercise) ? 'flagged' : undefined}>
             {missedReps(exercise) ? repsText(log) : 'All done'}

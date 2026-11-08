@@ -79,6 +79,12 @@ private fun parseLog(json: JSONObject): ExerciseLog {
         rpe = json.getInt("rpe"),
         repsPerSet = List(reps.length()) { reps.getInt(it) },
         note = json.getString("note"),
+        perSet = json.optJSONArray("perSet")?.map {
+            SetLog(
+                weightKg = if (it.isNull("weightKg")) null else it.getDouble("weightKg"),
+                rpe = it.getInt("rpe"),
+            )
+        },
     )
 }
 
@@ -107,6 +113,14 @@ private fun progressJson(log: ExerciseLog) = JSONObject().apply {
     put("rpe", log.rpe)
     put("repsPerSet", JSONArray(log.repsPerSet))
     put("note", log.note)
+    log.perSet?.let { sets ->
+        put("perSet", JSONArray(sets.map { set ->
+            JSONObject().apply {
+                put("weightKg", set.weightKg)
+                put("rpe", set.rpe)
+            }
+        }))
+    }
 }
 
 /** [plan] with [progress] applied, or unchanged if the progress belongs to another week. */

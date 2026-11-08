@@ -59,6 +59,7 @@ import com.example.workoutprogram.data.Exercise
 import com.example.workoutprogram.data.ExerciseLog
 import com.example.workoutprogram.data.Load
 import com.example.workoutprogram.data.SampleWeek
+import com.example.workoutprogram.data.SetLog
 import com.example.workoutprogram.data.Workout
 import com.example.workoutprogram.data.formatKg
 import com.example.workoutprogram.ui.components.AppIcons
@@ -89,13 +90,24 @@ fun LogExerciseScreen(
 ) {
     val exercise = workout.exercises.first { it.id == exerciseId }
     val log = exercise.log
-    val tracksWeight = exercise.load != Load.None
+    // Without a prescribed load the weight is optional, as for bodyweight work.
+    val weightRequired = exercise.load != Load.None
     val targetRpe = (exercise.load as? Load.TargetRpe)?.rpe
 
     val weight = rememberTextFieldState(initialWeight(exercise)?.let(::formatKg).orEmpty())
     var rpe by rememberSaveable { mutableIntStateOf(log?.rpe ?: targetRpe ?: DEFAULT_RPE) }
-    var allReps by rememberSaveable {
-        mutableStateOf(log?.repsPerSet?.all { it >= exercise.reps } ?: true)
+    // Logging only the last set means every set hit its reps, so a log with a short set opens
+    // set by set, as do logs saved before per-set logging that recorded one.
+    var eachSet by rememberSaveable {
+        mutableStateOf(log != null && (log.perSet != null || log.repsPerSet.any { it < exercise.reps }))
+    }
+    val setWeights = List(exercise.sets) { set ->
+        val saved = log?.perSet?.getOrNull(set)
+        val kg = if (saved != null) saved.weightKg else initialWeight(exercise)
+        rememberTextFieldState(kg?.let(::formatKg).orEmpty())
+    }
+    val setRpes = List(exercise.sets) { set ->
+        rememberTextFieldState((log?.perSet?.getOrNull(set)?.rpe ?: rpe).toString())
     }
     val reps = List(exercise.sets) { set ->
         rememberTextFieldState((log?.repsPerSet?.getOrNull(set) ?: exercise.reps).toString())
@@ -104,7 +116,26 @@ fun LogExerciseScreen(
     var showNote by rememberSaveable { mutableStateOf(!log?.note.isNullOrEmpty()) }
 
     val weightKg = weight.text.toString().toDoubleOrNull()
-    val canSave = !tracksWeight || weightKg != null
+    val perSet = setWeights.zip(setRpes) { kg, effort ->
+        SetLog(kg.text.toString().toDoubleOrNull(), effort.text.toString().toIntOrNull() ?: 0)
+    }
+    val canSave = if (eachSet) {
+        perSet.all { it.rpe in 1..10 && (!weightRequired || it.weightKg != null) }
+    } else {
+        !weightRequired || weightKg != null
+    }
+    val switchEachSet = { on: Boolean ->
+        // Carry the last set across, so switching doesn't lose what was entered.
+        if (on) {
+            setWeights.forEach { if (it.text.isEmpty()) it.setTextAndPlaceCursorAtEnd(weight.text.toString()) }
+            setWeights.last().setTextAndPlaceCursorAtEnd(weight.text.toString())
+            setRpes.last().setTextAndPlaceCursorAtEnd(rpe.toString())
+        } else {
+            weight.setTextAndPlaceCursorAtEnd(setWeights.last().text.toString())
+            perSet.last().rpe.takeIf { it in 1..10 }?.let { rpe = it }
+        }
+        eachSet = on
+    }
     val hasNext = workout.nextUnlogged(exerciseId) != null
 
     Scaffold(
@@ -113,17 +144,25 @@ fun LogExerciseScreen(
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest) {
                 Button(
                     onClick = {
+                        val enteredReps = reps.map { it.text.toString().toIntOrNull() ?: 0 }
+                        val trimmedNote = note.text.toString().trim()
                         onSave(
-                            ExerciseLog(
-                                weightKg = weightKg.takeIf { tracksWeight },
-                                rpe = rpe,
-                                repsPerSet = if (allReps) {
-                                    List(exercise.sets) { exercise.reps }
-                                } else {
-                                    reps.map { it.text.toString().toIntOrNull() ?: 0 }
-                                },
-                                note = note.text.toString().trim(),
-                            ),
+                            if (eachSet) {
+                                ExerciseLog(
+                                    weightKg = perSet.last().weightKg,
+                                    rpe = perSet.last().rpe,
+                                    repsPerSet = enteredReps,
+                                    note = trimmedNote,
+                                    perSet = perSet,
+                                )
+                            } else {
+                                ExerciseLog(
+                                    weightKg = weightKg,
+                                    rpe = rpe,
+                                    repsPerSet = List(exercise.sets) { exercise.reps },
+                                    note = trimmedNote,
+                                )
+                            },
                         )
                     },
                     enabled = canSave,
@@ -165,25 +204,47 @@ fun LogExerciseScreen(
             }
             Column(Modifier.padding(horizontal = 16.dp)) {
                 PrescriptionCard(exercise)
+                val lastWeek = exercise.lastWeek?.let {
+                    stringResource(R.string.last_week_result, formatKg(it.weightKg), it.rpe)
+                }
                 SectionLabel(
-                    text = stringResource(R.string.your_last_set),
-                    modifier = Modifier.padding(top = 28.dp, bottom = if (tracksWeight) 20.dp else 12.dp),
+                    text = stringResource(if (eachSet) R.string.your_sets else R.string.your_last_set),
+                    modifier = Modifier.padding(top = 28.dp, bottom = if (eachSet) 12.dp else 20.dp),
                 )
-                if (tracksWeight) {
+                if (eachSet) {
+                    SetsList(
+                        exercise = exercise,
+                        reps = reps,
+                        weights = setWeights,
+                        rpes = setRpes,
+                        weightRequired = weightRequired,
+                        hint = listOfNotNull(
+                            targetRpe?.let { stringResource(R.string.target_rpe_last_set, it) },
+                            lastWeek,
+                        ).joinToString(" · ").ifEmpty { null },
+                    )
+                } else {
                     WeightStepper(
                         state = weight,
-                        lastWeek = exercise.lastWeek?.let {
-                            stringResource(R.string.last_week_result, formatKg(it.weightKg), it.rpe)
-                        },
+                        label = stringResource(
+                            if (weightRequired) R.string.weight_used else R.string.weight_used_optional,
+                        ),
+                        lastWeek = lastWeek,
                     )
                     Spacer(Modifier.height(28.dp))
+                    RpePicker(rpe, targetRpe, onPick = { rpe = it })
+                    Spacer(Modifier.height(20.dp))
                 }
-                RpePicker(rpe, targetRpe, onPick = { rpe = it })
-                Spacer(Modifier.height(20.dp))
-                RepsSwitch(exercise, allReps, onChange = { allReps = it })
-                if (!allReps) {
-                    RepsGrid(target = exercise.reps, reps = reps)
-                }
+                SettingSwitch(
+                    title = stringResource(R.string.log_each_set),
+                    summary = stringResource(
+                        if (exercise.perSide) R.string.log_each_set_summary_per_side else R.string.log_each_set_summary,
+                        exercise.sets,
+                        exercise.reps,
+                    ),
+                    checked = eachSet,
+                    onChange = switchEachSet,
+                )
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -272,7 +333,7 @@ private fun Stat(
 }
 
 @Composable
-private fun WeightStepper(state: TextFieldState, lastWeek: String?) {
+private fun WeightStepper(state: TextFieldState, label: String, lastWeek: String?) {
     val step = { delta: Double ->
         val next = ((state.text.toString().toDoubleOrNull() ?: 0.0) + delta).coerceAtLeast(0.0)
         state.setTextAndPlaceCursorAtEnd(formatKg(Math.round(next * 10) / 10.0))
@@ -284,7 +345,7 @@ private fun WeightStepper(state: TextFieldState, lastWeek: String?) {
             transform = { input ->
                 input.replace(',', '.').takeIf { it.isEmpty() || it.toDoubleOrNull() != null }
             },
-            label = stringResource(R.string.weight_used),
+            label = label,
             keyboardType = KeyboardType.Decimal,
             textStyle = MaterialTheme.typography.bodyLarge.copy(
                 fontFamily = RobotoCondensed,
@@ -387,7 +448,12 @@ private fun RpeButton(
 }
 
 @Composable
-private fun RepsSwitch(exercise: Exercise, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun SettingSwitch(
+    title: String,
+    summary: String,
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     Row(
         modifier = Modifier
@@ -398,10 +464,8 @@ private fun RepsSwitch(exercise: Exercise, checked: Boolean, onChange: (Boolean)
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.completed_all_reps), style = MaterialTheme.typography.bodyLarge)
-            val summary =
-                if (exercise.perSide) R.string.sets_by_reps_per_side else R.string.sets_by_reps
-            SupportText(stringResource(summary, exercise.sets, exercise.reps))
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            SupportText(summary)
         }
         Switch(
             checked = checked,
@@ -411,47 +475,71 @@ private fun RepsSwitch(exercise: Exercise, checked: Boolean, onChange: (Boolean)
     }
 }
 
+/** Reps, weight and RPE for every set, a row each. */
 @Composable
-private fun RepsGrid(target: Int, reps: List<TextFieldState>) {
+private fun SetsList(
+    exercise: Exercise,
+    reps: List<TextFieldState>,
+    weights: List<TextFieldState>,
+    rpes: List<TextFieldState>,
+    weightRequired: Boolean,
+    hint: String?,
+) {
     Column(
-        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.padding(bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        SupportText(stringResource(R.string.enter_actual_reps))
-        reps.chunked(3).forEachIndexed { rowIndex, row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEachIndexed { columnIndex, state ->
-                    RepsField(rowIndex * 3 + columnIndex, state, target, Modifier.weight(1f))
+        hint?.let { SupportText(it) }
+        reps.indices.forEach { set ->
+            val done = reps[set].text.toString().toIntOrNull() ?: 0
+            val short = exercise.reps - done
+            val rpe = rpes[set].text.toString().toIntOrNull()
+            val missingWeight = weightRequired && weights[set].text.toString().toDoubleOrNull() == null
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(R.string.set_n, set + 1),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LabeledField(
+                        state = reps[set],
+                        transform = { input -> input.takeIf { it.length <= 3 && it.all(Char::isDigit) } },
+                        label = stringResource(R.string.reps),
+                        keyboardType = KeyboardType.Number,
+                        isError = short > 0,
+                        modifier = Modifier.weight(1f),
+                    )
+                    LabeledField(
+                        state = weights[set],
+                        transform = { input ->
+                            input.replace(',', '.').takeIf { it.isEmpty() || it.toDoubleOrNull() != null }
+                        },
+                        label = stringResource(R.string.load_kg),
+                        keyboardType = KeyboardType.Decimal,
+                        isError = missingWeight,
+                        modifier = Modifier.weight(1.3f),
+                    )
+                    LabeledField(
+                        state = rpes[set],
+                        transform = { input ->
+                            input.takeIf { it.isEmpty() || (it.all(Char::isDigit) && it.toInt() <= 10) }
+                        },
+                        label = stringResource(R.string.rpe),
+                        keyboardType = KeyboardType.Number,
+                        isError = rpe == null || rpe !in 1..10,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
-                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                if (short > 0) {
+                    Text(
+                        text = stringResource(R.string.reps_short, short),
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun RepsField(
-    index: Int,
-    state: TextFieldState,
-    target: Int,
-    modifier: Modifier = Modifier,
-) {
-    val done = state.text.toString().toIntOrNull() ?: 0
-    val short = target - done
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        LabeledField(
-            state = state,
-            transform = { input -> input.takeIf { it.length <= 3 && it.all(Char::isDigit) } },
-            label = stringResource(R.string.set_n, index + 1),
-            keyboardType = KeyboardType.Number,
-            isError = short > 0,
-        )
-        Text(
-            text = if (short > 0) stringResource(R.string.reps_short, short) else "",
-            modifier = Modifier.padding(horizontal = 4.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error,
-        )
     }
 }
 
@@ -468,5 +556,22 @@ private fun LogTargetRpePreview() {
 private fun LogNoLoadPreview() {
     WorkoutProgramTheme {
         LogExerciseScreen(SampleWeek.workouts[2], "band-pull-apart", {}, {})
+    }
+}
+
+@Preview(widthDp = 412, heightDp = 1360)
+@Composable
+private fun LogEachSetPreview() {
+    val workout = SampleWeek.workouts[2]
+    val perSet = listOf(SetLog(14.0, 7), SetLog(16.0, 8), SetLog(16.0, 9))
+    val logged = workout.copy(
+        exercises = workout.exercises.map {
+            if (it.id != "shoulder-press") it else it.copy(
+                log = ExerciseLog(16.0, 9, listOf(10, 10, 8), perSet = perSet),
+            )
+        },
+    )
+    WorkoutProgramTheme {
+        LogExerciseScreen(logged, "shoulder-press", {}, {})
     }
 }

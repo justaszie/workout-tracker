@@ -88,11 +88,18 @@
     <string name="load_kg">Load (kg)</string>
     <string name="load_none">—</string>
     <string name="target_explainer">No set weight — choose one that gets you to about RPE %d on the last set.</string>
-    <string name="no_load_explainer">No load or RPE target for this one — just log how the last set felt.</string>
+    <string name="no_load_explainer">No load or RPE target for this one — log any weight you used and how the last set felt.</string>
     <string name="your_last_set">Your last set</string>
     <string name="decrease_weight">Decrease weight</string>
     <string name="increase_weight">Increase weight</string>
+    <string name="your_sets">Your sets</string>
+    <string name="log_each_set">Log each set</string>
+    <string name="log_each_set_summary">For a short set, or a weight that changed. Off means all %1$d sets × %2$d reps done.</string>
+    <string name="log_each_set_summary_per_side">For a short set, or a weight that changed. Off means all %1$d sets × %2$d reps per side done.</string>
+    <string name="target_rpe_last_set">Target RPE %d on the last set</string>
+    <string name="rpe">RPE</string>
     <string name="weight_used">Weight used</string>
+    <string name="weight_used_optional">Weight used (optional)</string>
     <string name="kg_unit">kg</string>
     <string name="last_week_result">Last week: %1$s kg at RPE %2$d</string>
     <string name="rpe_on_last_set">RPE on last set</string>
@@ -110,10 +117,6 @@
         <item>maybe 1 more rep</item>
         <item>max effort, nothing left</item>
     </string-array>
-    <string name="completed_all_reps">Completed all reps</string>
-    <string name="sets_by_reps">%1$d sets × %2$d reps</string>
-    <string name="sets_by_reps_per_side">%1$d sets × %2$d reps per side</string>
-    <string name="enter_actual_reps">Enter the reps you actually did in each set.</string>
     <string name="set_n">Set %d</string>
     <string name="reps_short">%d short</string>
     <string name="add_note">Add note for coach</string>

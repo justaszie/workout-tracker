@@ -13,11 +13,22 @@ export interface LastWeek {
   rpe: number
 }
 
+/** Weight and RPE for one set, when the client logs each set rather than only the last. */
+export interface SetLog {
+  weightKg: number | null
+  rpe: number
+}
+
+/**
+ * weightKg and rpe are always the last set's. perSet holds every set's weight and RPE when the
+ * client entered them, in the same order as repsPerSet, and is missing otherwise.
+ */
 export interface ExerciseLog {
   weightKg: number | null
   rpe: number
   repsPerSet: number[]
   note: string
+  perSet?: SetLog[]
 }
 
 export interface Exercise {
@@ -158,6 +169,17 @@ export function plannedText(exercise: Exercise): string {
 }
 
 export const repsText = (log: ExerciseLog) => log.repsPerSet.join(' · ')
+
+/** Each set's weight, as "14 · 16 · 16 kg", or null unless the client logged each set. */
+export function setWeightsText(log: ExerciseLog): string | null {
+  if (!log.perSet?.some((set) => set.weightKg != null)) return null
+  return `${log.perSet.map((set) => set.weightKg == null ? '—' : formatKg(set.weightKg)).join(' · ')} kg`
+}
+
+/** Each set's RPE, as "7 · 8 · 9", or null unless the client logged each set. */
+export function setRpesText(log: ExerciseLog): string | null {
+  return log.perSet ? log.perSet.map((set) => set.rpe).join(' · ') : null
+}
 
 /** Only http(s) links are rendered, since links come from free-text fields. */
 export function safeUrl(url: string): string | null {

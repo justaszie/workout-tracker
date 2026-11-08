@@ -99,6 +99,14 @@ class WeekJsonTest {
     }
 
     @Test
+    fun withProgress_restoresEachSetsWeightAndRpe() {
+        val perSet = listOf(SetLog(16.0, 7), SetLog(null, 8), SetLog(18.0, 9))
+        val local = plan.logExercise("a", "curl", log.copy(weightKg = 18.0, rpe = 9, perSet = perSet))
+
+        assertEquals(local, withProgress(plan, progressJson(local)))
+    }
+
+    @Test
     fun withProgress_ignoresAnotherWeek() {
         val otherWeek = plan.copy(id = "w8").finish(LocalDate.of(2026, 10, 25), "Old")
 
