@@ -18,11 +18,19 @@ data class Resource(val kind: Kind, val url: String) {
 
 data class LastWeek(val weightKg: Double, val rpe: Int)
 
+/** Weight and RPE for one set, when the client logs each set rather than only the last. */
+data class SetLog(val weightKg: Double?, val rpe: Int)
+
+/**
+ * [weightKg] and [rpe] are always the last set's. [perSet] holds every set's weight and RPE when
+ * the client entered them, one per set, in the same order as [repsPerSet].
+ */
 data class ExerciseLog(
     val weightKg: Double?,
     val rpe: Int,
     val repsPerSet: List<Int>,
     val note: String = "",
+    val perSet: List<SetLog>? = null,
 )
 
 data class Exercise(

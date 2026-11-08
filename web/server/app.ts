@@ -4,7 +4,7 @@ import express from 'express'
 import type { NextFunction, Request, Response } from 'express'
 import {
   currentWeek, initialsOf, newId, toDateString,
-  type ExerciseLog, type PlanForm, type Week,
+  type ExerciseLog, type PlanForm, type SetLog, type Week,
 } from '../shared/model.ts'
 import { editErrors, editWeek, planErrors, toWeek } from '../shared/plan.ts'
 import { Refused, type Store } from './store.ts'
@@ -40,6 +40,15 @@ function isLog(value: unknown): value is ExerciseLog {
     && log.repsPerSet.every((reps) => typeof reps === 'number')
 }
 
+/** Each set's weight and RPE, if the client logged them for every set. */
+function perSet(log: ExerciseLog): SetLog[] | undefined {
+  const sets: unknown = log.perSet
+  if (!Array.isArray(sets) || sets.length !== log.repsPerSet.length) return undefined
+  const valid = sets.every((set) => typeof set?.rpe === 'number'
+    && (set.weightKg == null || typeof set.weightKg === 'number'))
+  return valid ? sets.map((set) => ({ weightKg: set.weightKg ?? null, rpe: set.rpe })) : undefined
+}
+
 /** The JSON the Android WeekStore saves. It omits null values, so every field may be missing. */
 interface WeekProgress {
   finishedOn?: string
@@ -66,6 +75,7 @@ function mergeProgress(week: Week, progress: WeekProgress): Week {
         exercises: workout.exercises.map((exercise) => {
           const log = saved.logs?.[exercise.id]
           if (!isLog(log)) return { ...exercise, log: null }
+          const sets = perSet(log)
           return {
             ...exercise,
             log: {
@@ -73,6 +83,8 @@ function mergeProgress(week: Week, progress: WeekProgress): Week {
               rpe: log.rpe,
               repsPerSet: log.repsPerSet,
               note: log.note ?? '',
+              // Left out rather than null, so logs saved before per-set logging compare equal.
+              ...sets && { perSet: sets },
             },
           }
         }),

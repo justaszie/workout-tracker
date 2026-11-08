@@ -123,6 +123,25 @@ describe('progress from the client app', () => {
     assert.deepEqual(merged.workouts[0].exercises[0].log, { ...log, weightKg: null, note: '' })
   })
 
+  it('keeps the weight and RPE of each set', async () => {
+    const week = await publish()
+    const perSet = log.repsPerSet.map((_, i) => ({ weightKg: i === 0 ? null : 20 + i, rpe: 7 + i }))
+    const response = await send('PUT', `/clients/me/weeks/${week.id}/progress`, {
+      workouts: { w1: { logs: { e1: { ...log, perSet } } } },
+    })
+    const merged: Week = await response.json()
+    assert.deepEqual(merged.workouts[0].exercises[0].log?.perSet, perSet)
+  })
+
+  it('drops per-set values that do not match the sets', async () => {
+    const week = await publish()
+    const response = await send('PUT', `/clients/me/weeks/${week.id}/progress`, {
+      workouts: { w1: { logs: { e1: { ...log, perSet: [{ weightKg: 20, rpe: 8 }, { weightKg: 'x' }] } } } },
+    })
+    const merged: Week = await response.json()
+    assert.equal(merged.workouts[0].exercises[0].log?.perSet, undefined)
+  })
+
   it('does not count an unchanged save as activity', async () => {
     const week = await publish()
     const response = await send('PUT', `/clients/me/weeks/${week.id}/progress`, {})

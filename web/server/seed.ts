@@ -83,7 +83,10 @@ function alexWeek(): Week {
         exercise('Pallof press', 3, 12, undefined, log(null, 6, all(3, 12))),
       ], dayOffset(5), album),
       workout('Upper A', [
-        exercise('Incline dumbbell press', 4, 8, rpe(8), log(26, 8, all(4, 8))),
+        exercise('Incline dumbbell press', 4, 8, rpe(8), {
+          ...log(26, 8, all(4, 8)),
+          perSet: [{ weightKg: 22, rpe: 6 }, { weightKg: 24, rpe: 7 }, { weightKg: 26, rpe: 7 }, { weightKg: 26, rpe: 8 }],
+        }),
         exercise('Lat pulldown', 3, 10, fixed(55), log(55, 9, [10, 10, 8], 'Grip gave out on the last set')),
         exercise('Seated cable row', 3, 12, rpe(8), log(50, 7, all(3, 12))),
         exercise('Dumbbell lateral raise', 3, 15, undefined, log(8, 9, all(3, 15))),
