@@ -27,16 +27,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,7 +59,6 @@ import com.example.workoutprogram.ui.components.StepProgress
 import com.example.workoutprogram.ui.components.SupportText
 import com.example.workoutprogram.ui.components.Tag
 import com.example.workoutprogram.ui.theme.WorkoutProgramTheme
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -76,14 +71,12 @@ fun WeekScreen(
     onOpenWorkout: (String) -> Unit,
     onFinishWeek: (note: String) -> Unit,
     onReopenWeek: () -> Unit,
+    onOpenHistory: () -> Unit,
     uploading: Boolean = false,
 ) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
-    val snackbar = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val noPastWeeks = stringResource(R.string.no_past_weeks)
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { padding ->
+    Scaffold { padding ->
         Column(
             Modifier
                 .fillMaxSize()
@@ -91,7 +84,7 @@ fun WeekScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = padding.calculateBottomPadding()),
         ) {
-            Header(week, onPastWeeks = { scope.launch { snackbar.showSnackbar(noPastWeeks) } })
+            Header(week, onPastWeeks = onOpenHistory)
             if (week.isFinished) FinishedBanner(week, uploading) else CoachCard(week)
             SectionLabel(
                 text = stringResource(R.string.workouts),
@@ -131,7 +124,7 @@ fun WeekScreen(
     }
 }
 
-private fun rowShape(index: Int, last: Int) = RoundedCornerShape(
+internal fun rowShape(index: Int, last: Int) = RoundedCornerShape(
     topStart = if (index == 0) 16.dp else 4.dp,
     topEnd = if (index == 0) 16.dp else 4.dp,
     bottomStart = if (index == last) 16.dp else 4.dp,
@@ -291,7 +284,7 @@ private fun FinishedBanner(week: ProgramWeek, uploading: Boolean) {
 }
 
 @Composable
-private fun WorkoutRow(
+internal fun WorkoutRow(
     number: Int,
     workout: Workout,
     weekFinished: Boolean,
@@ -537,7 +530,7 @@ private fun FinishWeekDialog(
 @Composable
 private fun WeekScreenPreview() {
     WorkoutProgramTheme {
-        WeekScreen(SampleWeek, {}, {}, {})
+        WeekScreen(SampleWeek, {}, {}, {}, {})
     }
 }
 
@@ -545,6 +538,6 @@ private fun WeekScreenPreview() {
 @Composable
 private fun WeekFinishedPreview() {
     WorkoutProgramTheme {
-        WeekScreen(SampleWeek.finish(LocalDate.of(2026, 10, 31), "Travelling Thu–Sun, no gym at the hotel."), {}, {}, {})
+        WeekScreen(SampleWeek.finish(LocalDate.of(2026, 10, 31), "Travelling Thu–Sun, no gym at the hotel."), {}, {}, {}, {})
     }
 }

@@ -163,6 +163,38 @@ describe('progress from the client app', () => {
   })
 })
 
+describe('past weeks for the client app', () => {
+  beforeEach(() => start())
+
+  const pastWeeks = async (): Promise<(Week & { coach: Data['coach'] })[]> =>
+    (await fetch(`${base}/clients/me/past-weeks`)).json()
+
+  it('has none while the client is on their first week', async () => {
+    assert.deepEqual(await pastWeeks(), [])
+    await publish()
+    assert.deepEqual(await pastWeeks(), [])
+  })
+
+  it('lists the weeks before the current one, newest first, with what was logged', async () => {
+    const first = await publish()
+    await send('PUT', `/clients/me/weeks/${first.id}/progress`, {
+      finishedOn: today, workouts: { w1: { logs: { e1: log } } },
+    })
+    const second = await publish()
+    await send('PUT', `/clients/me/weeks/${second.id}/progress`, { finishedOn: today })
+    await publish()
+
+    const weeks = await pastWeeks()
+    assert.deepEqual(weeks.map((week) => week.id), [second.id, first.id])
+    assert.deepEqual(weeks[0].coach, { name: 'Coach', initials: 'C' })
+    assert.equal(weeks[1].workouts[0].exercises[0].log?.rpe, log.rpe)
+  })
+
+  it('answers 404 for an unknown client', async () => {
+    assert.equal((await fetch(`${base}/clients/nobody/past-weeks`)).status, 404)
+  })
+})
+
 describe('editing the current week', () => {
   beforeEach(() => start())
 

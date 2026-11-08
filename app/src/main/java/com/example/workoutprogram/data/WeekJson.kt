@@ -26,6 +26,9 @@ fun parseWeek(json: JSONObject): ProgramWeek {
     )
 }
 
+/** Throws JSONException if [json] isn't an array of weeks. */
+fun parseWeeks(json: JSONArray): List<ProgramWeek> = json.map(::parseWeek)
+
 private fun parseWorkout(json: JSONObject) = Workout(
     id = json.getString("id"),
     name = json.getString("name"),

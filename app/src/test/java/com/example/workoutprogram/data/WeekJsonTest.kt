@@ -1,5 +1,6 @@
 package com.example.workoutprogram.data
 
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -123,5 +124,14 @@ class WeekJsonTest {
     @Test
     fun withProgress_acceptsNoLocalWeek() {
         assertEquals(plan, withProgress(plan, null as ProgramWeek?))
+    }
+
+    @Test
+    fun parseWeeks_readsEachWeekInOrder() {
+        val older = serverWeek.replace("\"w9\"", "\"w8\"")
+        val weeks = parseWeeks(JSONArray("[$serverWeek, $older]"))
+
+        assertEquals(listOf("w9", "w8"), weeks.map { it.id })
+        assertEquals(8, weeks[1].workouts[0].exercises[0].log?.rpe)
     }
 }

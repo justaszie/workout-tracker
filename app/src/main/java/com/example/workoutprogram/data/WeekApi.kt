@@ -25,6 +25,19 @@ class WeekApi(
         }
     }
 
+    /** Every week before the current one, newest first, as a JSON array of weeks. */
+    fun pastWeeks(): String {
+        val connection = connect("past-weeks")
+        try {
+            return when (val status = connection.responseCode) {
+                HttpURLConnection.HTTP_OK -> connection.inputStream.bufferedReader().use { it.readText() }
+                else -> throw IOException("Server answered $status.")
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     /**
      * Replaces what the server holds for week [weekId] with [progress]. Saving the same progress
      * again changes nothing. Throws IOException if the upload is worth trying again; progress for

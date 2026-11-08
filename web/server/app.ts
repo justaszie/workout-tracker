@@ -161,6 +161,13 @@ export function createApp(store: Store, options: Options = {}) {
     res.json({ ...week, coach: await store.coach() })
   })
 
+  // Every week before the current one, newest first. They are all finished, since a new week can
+  // only be published once the one before it is.
+  api.get('/clients/:clientId/past-weeks', async (req, res) => {
+    const [client, coach] = await Promise.all([store.client(req.params.clientId), store.coach()])
+    res.json(client.weeks.slice(0, -1).reverse().map((week) => ({ ...week, coach })))
+  })
+
   api.put('/clients/:clientId/weeks/:weekId/progress', async (req, res) => {
     const merged = await store.update(req.params.clientId, (client) => {
       const week = currentWeek(client)

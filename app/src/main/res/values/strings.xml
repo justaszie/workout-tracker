@@ -26,6 +26,29 @@
     <!-- Week -->
     <string name="past_weeks">Past weeks</string>
     <string name="no_past_weeks">No past weeks yet</string>
+    <string name="no_past_weeks_body">Each week you finish and send to your coach shows up here, with everything you logged.</string>
+    <string name="history">History</string>
+    <plurals name="weeks_finished">
+        <item quantity="one">%1$d week finished with %2$s</item>
+        <item quantity="other">%1$d weeks finished with %2$s</item>
+    </plurals>
+    <string name="past_weeks_failed">Couldn\'t load your past weeks. Check your connection and try again.</string>
+    <string name="block_n">Block %d</string>
+    <string name="week_n">Week %d</string>
+    <string name="past_week_detail">%1$s · %2$d of %3$d done</string>
+    <string name="past_week">Past week</string>
+    <string name="older_week">Older week, %s</string>
+    <string name="newer_week">Newer week, %s</string>
+    <string name="set">Set</string>
+    <string name="weight_reps">Weight × reps</string>
+    <string name="set_weight_reps">%1$s kg × %2$d</string>
+    <plurals name="set_reps">
+        <item quantity="one">%d rep</item>
+        <item quantity="other">%d reps</item>
+    </plurals>
+    <string name="reps_list">Reps %s</string>
+    <string name="not_logged">Not logged</string>
+    <string name="open_album">Open album</string>
     <string name="current_week">Current week</string>
     <string name="finished_waiting">Finished · waiting for coach</string>
     <string name="started_on">Started %s</string>
