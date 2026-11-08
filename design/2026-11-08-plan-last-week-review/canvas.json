@@ -1,0 +1,19 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-08T12:00:00Z"},
+  "title": "Last week review in plan builder",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 1900, "title": "A · Inline: last week under each exercise", "expand": "fill", "is_interactive": true},
+    "Separate.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 1900, "title": "B · Separate: last week as its own panel", "expand": "fill", "is_interactive": true},
+    "FirstWeek.dc.html": {"x": 3040, "y": 0, "w": 1440, "h": 1500, "title": "No previous week: first week of a block", "expand": "fill"}
+  },
+  "order": ["Main.dc.html", "Separate.dc.html", "FirstWeek.dc.html"],
+  "notes": {
+    "title": {"x": 0, "y": -300, "text": "Plan next week · review of last week", "kind": "title1", "maxW": 4480}
+  },
+  "designSystems": [
+    {"title": "Workout Coach", "namespace": "workoutcoach", "artifact": "https://claude.ai/artifact/GqLKfrxyAhFy3Vddp5PJHg", "version": "1794130741-33b5", "copiedAt": "2026-11-08T12:00:00Z"}
+  ]
+}
