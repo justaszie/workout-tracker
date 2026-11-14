@@ -21,7 +21,9 @@ export class ApiError extends Error {
 }
 
 export const loadData = () => request('/data')
-export const addClient = (name: string) => request('/clients', 'POST', { name })
+export const addClient = (name: string, email: string) => request('/clients', 'POST', { name, email })
+export const setClientEmail = (clientId: string, email: string) =>
+  request(`/clients/${clientId}/email`, 'PUT', { email })
 export const saveDraft = (clientId: string, form: PlanForm) =>
   request(`/clients/${clientId}/draft`, 'PUT', form)
 export const publishWeek = (clientId: string, form: PlanForm) =>
