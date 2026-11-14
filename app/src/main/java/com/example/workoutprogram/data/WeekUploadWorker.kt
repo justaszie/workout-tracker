@@ -22,10 +22,15 @@ import java.util.concurrent.TimeUnit
 class WeekUploadWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
         val progress = WeekStore.of(applicationContext).progress() ?: return Result.success()
-        val api = WeekApi(BuildConfig.API_URL, BuildConfig.CLIENT_ID, BuildConfig.API_PASSWORD)
+        val session = SessionStore.of(applicationContext)
+        val api = WeekApi(BuildConfig.API_URL) { session.token.value }
         return try {
             api.saveProgress(progress.getString("weekId"), progress.toString())
             Result.success()
+        } catch (_: SignedOutException) {
+            // Retrying can't help. The progress stays saved, and signing in starts a new upload.
+            session.end()
+            Result.failure()
         } catch (_: IOException) {
             Result.retry()
         }

@@ -18,6 +18,7 @@ object AppIcons {
     val Flag = strokeIcon("M5 21V4", "M5 4h11l-2 4 2 4H5")
     val Hourglass = strokeIcon("M6 2h12M6 22h12M7 2v4a5 5 0 0 0 10 0V2M7 22v-4a5 5 0 0 1 10 0v4")
     val Reopen = strokeIcon("M3 12a9 9 0 1 0 3-6.7L3 8", "M3 3v5h5")
+    val SignOut = strokeIcon("M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", "M16 17l5-5-5-5", "M21 12H9")
     val History = strokeIcon("M3 12a9 9 0 1 0 3-6.7L3 8", "M3 3v5h5", "M12 7v5l3 2")
     val Comment = strokeIcon("M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z")
     val Play = strokeIcon("M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0z", "M10 8.5l5 3.5-5 3.5z")

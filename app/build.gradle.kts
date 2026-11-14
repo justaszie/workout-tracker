@@ -27,17 +27,25 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Per machine, from local.properties. The app has no sign-in, so a build serves one client.
+        // Per machine, from local.properties.
         buildConfigField(
             "String", "API_URL",
             quoted(localProperties.getProperty("coach.apiUrl", "http://localhost:3000")),
         )
-        buildConfigField("String", "API_PASSWORD", quoted(localProperties.getProperty("coach.apiPassword", "")))
-        buildConfigField("String", "CLIENT_ID", quoted(localProperties.getProperty("coach.clientId", "")))
+        // The server's "Web application" OAuth client ID, which Google issues the sign-in token for.
+        buildConfigField(
+            "String", "GOOGLE_CLIENT_ID",
+            quoted(localProperties.getProperty("coach.googleClientId", "")),
+        )
     }
 
     buildTypes {
+        debug {
+            // Optional: a client to sign in as without Google, on a server that has no password.
+            buildConfigField("String", "DEV_CLIENT_ID", quoted(localProperties.getProperty("coach.clientId", "")))
+        }
         release {
+            buildConfigField("String", "DEV_CLIENT_ID", quoted(""))
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
@@ -62,6 +70,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.work.runtime)
