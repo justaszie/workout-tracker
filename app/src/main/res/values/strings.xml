@@ -23,6 +23,17 @@
     <string name="load_failed_body">Check your connection and try again.</string>
     <string name="try_again">Try again</string>
 
+    <!-- Sign-in -->
+    <string name="sign_in_title">Sign in</string>
+    <string name="sign_in_body">Use the Google account your coach has for you.</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="signing_in">Signing in…</string>
+    <string name="sign_in_failed">Couldn\'t sign in. Check your connection and try again.</string>
+    <string name="sign_in_developer">Developer sign-in</string>
+    <string name="sign_out">Sign out</string>
+    <string name="sign_out_title">Sign out?</string>
+    <string name="sign_out_body">Anything you logged that hasn\'t reached your coach yet is sent when you sign in again.</string>
+
     <!-- Week -->
     <string name="past_weeks">Past weeks</string>
     <string name="no_past_weeks">No past weeks yet</string>

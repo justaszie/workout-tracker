@@ -3,10 +3,10 @@ package com.example.workoutprogram.data
 import com.sun.net.httpserver.HttpServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.io.IOException
 import java.net.InetSocketAddress
-import java.util.Base64
 
 class WeekApiTest {
     private var status = 200
@@ -32,7 +32,8 @@ class WeekApiTest {
         start()
     }
 
-    private val api = WeekApi("http://127.0.0.1:${server.address.port}", "me", "secret")
+    private var token: String? = "session-1"
+    private val api = WeekApi("http://127.0.0.1:${server.address.port}") { token }
 
     @After
     fun stopServer() = server.stop(0)
@@ -42,17 +43,16 @@ class WeekApiTest {
         api.saveProgress("w9", """{"note":"Rūta"}""")
 
         assertEquals("PUT", method)
-        assertEquals("/api/clients/me/weeks/w9/progress", path)
+        assertEquals("/api/me/weeks/w9/progress", path)
         assertEquals("application/json", contentType)
         assertEquals("""{"note":"Rūta"}""", body)
     }
 
     @Test
-    fun saveProgress_sendsThePassword() {
+    fun saveProgress_sendsTheSession() {
         api.saveProgress("w9", "{}")
 
-        val encoded = Base64.getEncoder().encodeToString("client:secret".toByteArray())
-        assertEquals("Basic $encoded", authorization)
+        assertEquals("Bearer session-1", authorization)
     }
 
     @Test
@@ -69,11 +69,53 @@ class WeekApiTest {
         api.saveProgress("w9", "{}")
     }
 
-    @Test(expected = IOException::class)
-    fun saveProgress_failsWhenThePasswordIsWrong() {
+    @Test(expected = SignedOutException::class)
+    fun saveProgress_saysWhenTheSessionHasEnded() {
         status = 401
 
         api.saveProgress("w9", "{}")
+    }
+
+    @Test(expected = SignedOutException::class)
+    fun currentWeek_needsASession() {
+        token = null
+
+        api.currentWeek()
+    }
+
+    @Test
+    fun signInWithGoogle_tradesTheIdTokenForASession() {
+        responseBody = """{"token":"session-2","clientId":"me"}"""
+
+        assertEquals(SignInResult.SignedIn("session-2", "me"), api.signInWithGoogle("from-google"))
+        assertEquals("POST", method)
+        assertEquals("/api/auth/google", path)
+        assertEquals("""{"idToken":"from-google"}""", body)
+        assertNull(authorization)
+    }
+
+    @Test
+    fun signInWithGoogle_passesOnWhyTheServerRefused() {
+        status = 403
+        responseBody = """{"errors":["Your coach hasn't added you yet."]}"""
+
+        assertEquals(SignInResult.Refused("Your coach hasn't added you yet."), api.signInWithGoogle("from-google"))
+    }
+
+    @Test(expected = IOException::class)
+    fun signInWithGoogle_failsWhenTheServerGivesNoReason() {
+        status = 502
+
+        api.signInWithGoogle("from-google")
+    }
+
+    @Test
+    fun signOut_endsTheGivenSession() {
+        api.signOut("session-1")
+
+        assertEquals("POST", method)
+        assertEquals("/api/auth/sign-out", path)
+        assertEquals("Bearer session-1", authorization)
     }
 
     @Test
@@ -82,7 +124,7 @@ class WeekApiTest {
 
         assertEquals("[]", api.pastWeeks())
         assertEquals("GET", method)
-        assertEquals("/api/clients/me/past-weeks", path)
+        assertEquals("/api/me/past-weeks", path)
     }
 
     @Test(expected = IOException::class)

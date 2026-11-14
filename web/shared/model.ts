@@ -97,6 +97,8 @@ export interface Client {
   name: string
   initials: string
   joinedOn: string
+  /** The Google account the client signs in with, in lower case. Null until the coach enters it. */
+  email: string | null
   /** Oldest first. The last week is the one the client is on. */
   weeks: Week[]
   draft: PlanForm | null

@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import express from 'express'
 import type { NextFunction, Request, Response } from 'express'
@@ -7,12 +7,19 @@ import {
   type ExerciseLog, type PlanForm, type SetLog, type Week,
 } from '../shared/model.ts'
 import { editErrors, editWeek, planErrors, toWeek } from '../shared/plan.ts'
+import type { VerifyGoogleToken } from './google.ts'
 import { Refused, type Store } from './store.ts'
 
 interface Options {
-  /** When set, every request needs HTTP Basic auth with this password and any username. */
+  /**
+   * The coach's password. When set, every request needs HTTP Basic auth with it and any username,
+   * except the client app's own routes under /api/auth and /api/me. Without it, anyone who can
+   * reach the server is the coach, and can sign in as any client through /api/auth/dev.
+   */
   password?: string
   today?: () => string
+  /** Checks a Google ID token. Without it, clients can't sign in with Google. */
+  verifyGoogleToken?: VerifyGoogleToken
 }
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest()
@@ -25,6 +32,23 @@ function basicAuth(password: string) {
     if (timingSafeEqual(sha256(supplied), expected)) return next()
     res.set('WWW-Authenticate', 'Basic realm="Coach"').status(401).end()
   }
+}
+
+/** Session tokens are only ever stored hashed, as text. */
+const tokenHash = (token: string) => sha256(token).toString('hex')
+
+const bearerToken = (req: Request) => req.headers.authorization?.match(/^Bearer (.+)$/)?.[1]
+
+const forClientApp = (path: string) => /^\/api\/(auth|me)(\/|$)/.test(path)
+
+/** The email as stored: trimmed and in lower case, or null when the coach left it empty. */
+function parseEmail(value: unknown): string | null {
+  const email = typeof value === 'string' ? value.trim().toLowerCase() : value
+  if (email == null || email === '') return null
+  if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Refused(400, 'That is not an email address.')
+  }
+  return email
 }
 
 function isPlanForm(body: unknown): body is PlanForm {
@@ -96,10 +120,76 @@ function mergeProgress(week: Week, progress: WeekProgress): Week {
 export function createApp(store: Store, options: Options = {}) {
   const today = options.today ?? (() => toDateString(new Date()))
   const app = express()
-  if (options.password) app.use(basicAuth(options.password))
+  if (options.password) {
+    const coachOnly = basicAuth(options.password)
+    app.use((req, res, next) => (forClientApp(req.path) ? next() : coachOnly(req, res, next)))
+  }
 
   const api = express.Router()
   api.use(express.json({ limit: '1mb' }))
+
+  // Signing in from the client app. A session is a random token that the app sends back as
+  // `Authorization: Bearer <token>` on every request to /api/me.
+
+  const startSession = async (clientId: string, res: Response) => {
+    const token = randomBytes(32).toString('base64url')
+    await store.createSession(tokenHash(token), clientId)
+    // The app keeps what one client logged, so it has to notice when a different one signs in.
+    res.json({ token, clientId })
+  }
+
+  api.post('/auth/google', async (req, res) => {
+    if (!options.verifyGoogleToken) {
+      return void res.status(503).json({ errors: ['Google sign-in is not set up on this server.'] })
+    }
+    const idToken: unknown = req.body?.idToken
+    const identity = typeof idToken === 'string' ? await options.verifyGoogleToken(idToken) : null
+    if (!identity) return void res.status(401).json({ errors: ['Google sign-in failed. Try again.'] })
+    const clientId = await store.clientForGoogle(identity.sub, identity.email)
+    if (!clientId) {
+      return void res.status(403).json({ errors: [`Your coach hasn't added ${identity.email} yet.`] })
+    }
+    await startSession(clientId, res)
+  })
+
+  // For development without a Google account. Without a password the server only listens on
+  // localhost and the whole API is open anyway, so this gives away nothing more.
+  if (!options.password) {
+    api.post('/auth/dev', async (req, res) => {
+      const client = await store.client(String(req.body?.clientId))
+      await startSession(client.id, res)
+    })
+  }
+
+  api.post('/auth/sign-out', async (req, res) => {
+    const token = bearerToken(req)
+    if (token) await store.deleteSession(tokenHash(token))
+    res.status(204).end()
+  })
+
+  const me = express.Router()
+  me.use(async (req, res, next) => {
+    const token = bearerToken(req)
+    const clientId = token ? await store.sessionClient(tokenHash(token)) : null
+    if (!clientId) return void res.status(401).json({ errors: ['Sign in to continue.'] })
+    res.locals.clientId = clientId
+    next()
+  })
+  api.use('/me', me)
+
+  /**
+   * Each client app route exists twice: under /me for the signed-in client, and under
+   * /clients/:clientId behind the coach's password, which the Android app used before it had
+   * sign-in. The second can go once no installed app uses it.
+   */
+  const clientRoute = (
+    method: 'get' | 'put',
+    path: string,
+    handler: (clientId: string, req: Request, res: Response) => Promise<void>,
+  ) => {
+    me[method](path, (req, res) => handler(res.locals.clientId, req, res))
+    api[method](`/clients/:clientId${path}`, (req, res) => handler(String(req.params.clientId), req, res))
+  }
 
   // Used by the web app.
 
@@ -111,8 +201,15 @@ export function createApp(store: Store, options: Options = {}) {
     const name = typeof req.body?.name === 'string' ? req.body.name.trim() : ''
     if (!name) return void res.status(400).json({ errors: ['A client needs a name.'] })
     await store.addClient({
-      id: newId(), name, initials: initialsOf(name), joinedOn: today(), weeks: [], draft: null,
+      id: newId(), name, initials: initialsOf(name), joinedOn: today(),
+      email: parseEmail(req.body.email), weeks: [], draft: null,
     })
+    res.json(await store.data())
+  })
+
+  // The Google account a client signs in with. Changing it signs the client out everywhere.
+  api.put('/clients/:clientId/email', async (req, res) => {
+    await store.setEmail(req.params.clientId, parseEmail(req.body?.email))
     res.json(await store.data())
   })
 
@@ -155,21 +252,21 @@ export function createApp(store: Store, options: Options = {}) {
 
   // Used by the client app.
 
-  api.get('/clients/:clientId/current-week', async (req, res) => {
-    const week = currentWeek(await store.client(req.params.clientId))
+  clientRoute('get', '/current-week', async (clientId, _req, res) => {
+    const week = currentWeek(await store.client(clientId))
     if (!week) return void res.status(404).json({ errors: ['No week published yet.'] })
     res.json({ ...week, coach: await store.coach() })
   })
 
   // Every week before the current one, newest first. They are all finished, since a new week can
   // only be published once the one before it is.
-  api.get('/clients/:clientId/past-weeks', async (req, res) => {
-    const [client, coach] = await Promise.all([store.client(req.params.clientId), store.coach()])
+  clientRoute('get', '/past-weeks', async (clientId, _req, res) => {
+    const [client, coach] = await Promise.all([store.client(clientId), store.coach()])
     res.json(client.weeks.slice(0, -1).reverse().map((week) => ({ ...week, coach })))
   })
 
-  api.put('/clients/:clientId/weeks/:weekId/progress', async (req, res) => {
-    const merged = await store.update(req.params.clientId, (client) => {
+  clientRoute('put', '/weeks/:weekId/progress', async (clientId, req, res) => {
+    const merged = await store.update(clientId, (client) => {
       const week = currentWeek(client)
       if (week?.id !== req.params.weekId) throw new Refused(409, 'That is not the current week.')
       const merged = mergeProgress(week, req.body ?? {})

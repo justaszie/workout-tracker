@@ -9,6 +9,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.workoutprogram.data.ExerciseLog
 import com.example.workoutprogram.data.ProgramWeek
+import com.example.workoutprogram.data.SessionStore
+import com.example.workoutprogram.data.SignInResult
+import com.example.workoutprogram.data.SignedOutException
 import com.example.workoutprogram.data.WeekApi
 import com.example.workoutprogram.data.WeekStore
 import com.example.workoutprogram.data.WeekUploadWorker
@@ -24,6 +27,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -47,12 +51,30 @@ sealed interface Route {
 /** Why there is no week to show. Once one is cached, failed refreshes go unnoticed. */
 enum class LoadState { Loading, NoWeek, Failed }
 
+/** Where signing in stands. */
+sealed interface SignInState {
+    data object Idle : SignInState
+    data object Working : SignInState
+
+    /** [reason] is the server's own explanation, or null if it couldn't be reached. */
+    data class Failed(val reason: String?) : SignInState
+}
+
 /** Past weeks newest first, or null until they have been loaded once. */
 data class PastWeeks(val weeks: List<ProgramWeek>?, val loading: Boolean, val failed: Boolean)
 
 class WeekViewModel(application: Application) : AndroidViewModel(application) {
-    private val api = WeekApi(BuildConfig.API_URL, BuildConfig.CLIENT_ID, BuildConfig.API_PASSWORD)
+    private val session = SessionStore.of(application)
+    private val api = WeekApi(BuildConfig.API_URL) { session.token.value }
     private val store = WeekStore.of(application)
+
+    /** False while the sign-in screen should show. It turns false by itself when a session expires. */
+    val signedIn: StateFlow<Boolean> = session.token.map { it != null }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, session.token.value != null)
+
+    var signInState by mutableStateOf<SignInState>(SignInState.Idle)
+        private set
+
     private val _week = MutableStateFlow(store.load())
     val week: StateFlow<ProgramWeek?> = _week.asStateFlow()
 
@@ -81,8 +103,72 @@ class WeekViewModel(application: Application) : AndroidViewModel(application) {
             .launchIn(viewModelScope)
     }
 
+    /** [idToken] shows Google's account picker and returns its ID token, or null if the client backed out. */
+    fun signInWithGoogle(idToken: suspend (serverClientId: String) -> String?) {
+        val serverClientId = BuildConfig.GOOGLE_CLIENT_ID
+        if (serverClientId.isEmpty()) {
+            signInState = SignInState.Failed("coach.googleClientId is not set in local.properties.")
+            return
+        }
+        signIn {
+            val token = idToken(serverClientId) ?: return@signIn null
+            withContext(Dispatchers.IO) { api.signInWithGoogle(token) }
+        }
+    }
+
+    fun signInForDevelopment() = signIn {
+        withContext(Dispatchers.IO) { api.signInForDevelopment(BuildConfig.DEV_CLIENT_ID) }
+    }
+
+    /** [attempt] returns null if the client gave up, which is not a failure. */
+    private fun signIn(attempt: suspend () -> SignInResult?) {
+        if (signInState == SignInState.Working) return
+        signInState = SignInState.Working
+        viewModelScope.launch {
+            signInState = try {
+                when (val result = attempt()) {
+                    null -> SignInState.Idle
+                    is SignInResult.Refused -> SignInState.Failed(result.reason)
+                    is SignInResult.SignedIn -> {
+                        start(result)
+                        SignInState.Idle
+                    }
+                }
+            } catch (_: IOException) {
+                SignInState.Failed(null)
+            }
+        }
+    }
+
+    private suspend fun start(signedIn: SignInResult.SignedIn) {
+        // What is saved on the device belongs to whoever signed in last.
+        if (session.clientId != null && session.clientId != signedIn.clientId) {
+            withContext(Dispatchers.IO) { store.clear() }
+            _week.value = null
+            _history.value = PastWeeks(weeks = null, loading = false, failed = false)
+        }
+        backStack.removeRange(1, backStack.size)
+        withContext(Dispatchers.IO) { session.start(signedIn.token, signedIn.clientId) }
+        // Sends anything logged before the last session ended.
+        WeekUploadWorker.enqueue(getApplication())
+        refresh()
+    }
+
+    /** What was logged stays on the device, for when the same client signs in again. */
+    fun signOut() {
+        val token = session.token.value ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            session.end()
+            try {
+                api.signOut(token)
+            } catch (_: IOException) {
+                // The device is signed out; the server's copy of the session expires unused.
+            }
+        }
+    }
+
     fun refresh() {
-        if (refreshing) return
+        if (refreshing || session.token.value == null) return
         refreshing = true
         loadState = LoadState.Loading
         viewModelScope.launch {
@@ -98,6 +184,8 @@ class WeekViewModel(application: Application) : AndroidViewModel(application) {
                     // Merged here, not from disk, to keep anything logged during the request.
                     _week.update { withProgress(plan, it) }
                 }
+            } catch (_: SignedOutException) {
+                session.end()
             } catch (_: IOException) {
                 loadState = LoadState.Failed
             } catch (_: JSONException) {
@@ -122,6 +210,9 @@ class WeekViewModel(application: Application) : AndroidViewModel(application) {
                 val weeks = parseWeeks(JSONArray(body))
                 withContext(Dispatchers.IO) { store.savePastWeeks(body) }
                 _history.update { it.copy(weeks = weeks, loading = false) }
+            } catch (_: SignedOutException) {
+                _history.update { it.copy(loading = false) }
+                session.end()
             } catch (_: IOException) {
                 _history.update { it.copy(loading = false, failed = true) }
             } catch (_: JSONException) {

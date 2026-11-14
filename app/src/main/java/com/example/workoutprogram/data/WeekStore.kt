@@ -46,6 +46,10 @@ class WeekStore private constructor(planFile: File, progressFile: File, historyF
     @Synchronized
     fun savePastWeeks(json: String) = write(historyFile, json)
 
+    /** Forgets everything, for when a different client signs in on this device. */
+    @Synchronized
+    fun clear() = listOf(planFile, progressFile, historyFile).forEach { it.delete() }
+
     private fun <T> read(file: AtomicFile, parse: (JSONObject) -> T): T? =
         readText(file) { parse(JSONObject(it)) }
 

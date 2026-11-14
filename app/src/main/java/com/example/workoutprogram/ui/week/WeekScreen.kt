@@ -72,9 +72,11 @@ fun WeekScreen(
     onFinishWeek: (note: String) -> Unit,
     onReopenWeek: () -> Unit,
     onOpenHistory: () -> Unit,
+    onSignOut: () -> Unit,
     uploading: Boolean = false,
 ) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
+    var confirmSignOut by rememberSaveable { mutableStateOf(false) }
 
     Scaffold { padding ->
         Column(
@@ -84,7 +86,7 @@ fun WeekScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = padding.calculateBottomPadding()),
         ) {
-            Header(week, onPastWeeks = onOpenHistory)
+            Header(week, onPastWeeks = onOpenHistory, onSignOut = { confirmSignOut = true })
             if (week.isFinished) FinishedBanner(week, uploading) else CoachCard(week)
             SectionLabel(
                 text = stringResource(R.string.workouts),
@@ -122,6 +124,28 @@ fun WeekScreen(
             },
         )
     }
+
+    if (confirmSignOut) {
+        SignOutDialog(
+            onDismiss = { confirmSignOut = false },
+            onConfirm = {
+                // Cleared first: the flag is saved with the screen, and would reopen the dialog after signing in.
+                confirmSignOut = false
+                onSignOut()
+            },
+        )
+    }
+}
+
+@Composable
+fun SignOutDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.sign_out_title)) },
+        text = { Text(stringResource(R.string.sign_out_body)) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.sign_out)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 internal fun rowShape(index: Int, last: Int) = RoundedCornerShape(
@@ -132,7 +156,7 @@ internal fun rowShape(index: Int, last: Int) = RoundedCornerShape(
 )
 
 @Composable
-private fun Header(week: ProgramWeek, onPastWeeks: () -> Unit) {
+private fun Header(week: ProgramWeek, onPastWeeks: () -> Unit, onSignOut: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Column(Modifier.padding(start = 16.dp, end = 4.dp)) {
         Row(
@@ -144,6 +168,13 @@ private fun Header(week: ProgramWeek, onPastWeeks: () -> Unit) {
                 Icon(
                     imageVector = AppIcons.History,
                     contentDescription = stringResource(R.string.past_weeks),
+                    tint = colors.onSurfaceVariant,
+                )
+            }
+            IconButton(onClick = onSignOut) {
+                Icon(
+                    imageVector = AppIcons.SignOut,
+                    contentDescription = stringResource(R.string.sign_out),
                     tint = colors.onSurfaceVariant,
                 )
             }
@@ -530,7 +561,7 @@ private fun FinishWeekDialog(
 @Composable
 private fun WeekScreenPreview() {
     WorkoutProgramTheme {
-        WeekScreen(SampleWeek, {}, {}, {}, {})
+        WeekScreen(SampleWeek, {}, {}, {}, {}, {})
     }
 }
 
@@ -538,6 +569,6 @@ private fun WeekScreenPreview() {
 @Composable
 private fun WeekFinishedPreview() {
     WorkoutProgramTheme {
-        WeekScreen(SampleWeek.finish(LocalDate.of(2026, 10, 31), "Travelling Thu–Sun, no gym at the hotel."), {}, {}, {}, {})
+        WeekScreen(SampleWeek.finish(LocalDate.of(2026, 10, 31), "Travelling Thu–Sun, no gym at the hotel."), {}, {}, {}, {}, {})
     }
 }

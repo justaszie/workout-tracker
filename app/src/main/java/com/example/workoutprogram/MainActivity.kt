@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -18,6 +19,8 @@ import com.example.workoutprogram.ui.history.HistoryScreen
 import com.example.workoutprogram.ui.history.PastWeekScreen
 import com.example.workoutprogram.ui.history.PastWorkoutScreen
 import com.example.workoutprogram.ui.log.LogExerciseScreen
+import com.example.workoutprogram.ui.signin.SignInScreen
+import com.example.workoutprogram.ui.signin.googleIdToken
 import com.example.workoutprogram.ui.theme.WorkoutProgramTheme
 import com.example.workoutprogram.ui.week.WeekScreen
 import com.example.workoutprogram.ui.week.WeekUnavailable
@@ -51,7 +54,18 @@ private fun WorkoutApp(viewModel: WeekViewModel = viewModel()) {
         onStopOrDispose {}
     }
 
-    val week = currentWeek ?: return WeekUnavailable(viewModel.loadState, viewModel::refresh)
+    val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
+    if (!signedIn) {
+        val activity = LocalContext.current
+        return SignInScreen(
+            state = viewModel.signInState,
+            onSignIn = { viewModel.signInWithGoogle { googleIdToken(activity, it) } },
+            onDeveloperSignIn = viewModel::signInForDevelopment.takeIf { BuildConfig.DEV_CLIENT_ID.isNotEmpty() },
+        )
+    }
+
+    val week = currentWeek
+        ?: return WeekUnavailable(viewModel.loadState, viewModel::refresh, viewModel::signOut)
 
     BackHandler(enabled = viewModel.canGoBack, onBack = viewModel::back)
 
@@ -67,6 +81,7 @@ private fun WorkoutApp(viewModel: WeekViewModel = viewModel()) {
                     viewModel.open(Route.History)
                     viewModel.refreshHistory()
                 },
+                onSignOut = viewModel::signOut,
             )
         }
 

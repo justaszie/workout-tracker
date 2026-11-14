@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import {
-  clientStatus, currentWeek, gapsText, isWaitingOnCoach, joinedText, lastActivityText, shortTheme,
+  clientStatus, currentWeek, firstName, gapsText, isWaitingOnCoach, joinedText, lastActivityText, shortTheme,
   statusLabel, toDateString, waitingText, weekSummary, weekTitle,
   type Client, type ClientStatus, type Data,
 } from '../../shared/model.ts'
-import { addClient, ApiError } from '../api.ts'
+import { addClient, ApiError, setClientEmail } from '../api.ts'
 import {
   Avatar, Banner, Button, Card, Chip, Dialog, FilterGroup, PageHeader, ProgressBar, SearchField,
   Table, TableCell, TableRow, TextField, type ChipProps, type Column,
@@ -37,14 +37,29 @@ function actionLabel(status: ClientStatus) {
   return status === 'new' ? 'Plan first week' : 'View'
 }
 
-function ClientRow({ client, today }: { client: Client; today: string }) {
+function ClientRow({ client, today, onEditEmail }: { client: Client; today: string; onEditEmail: () => void }) {
   const week = currentWeek(client)
   const summary = week && weekSummary(week)
   const status = clientStatus(client, today)
   const primary = status === 'review' || status === 'new'
   return (
     <TableRow>
-      <TableCell><Avatar initials={client.initials} name={client.name} /></TableCell>
+      <TableCell>
+        <Avatar
+          initials={client.initials}
+          name={
+            <span className="stack">
+              {client.name}
+              <button
+                type="button" className="caption client-email" onClick={onEditEmail}
+                aria-label={`Sign-in email for ${client.name}: ${client.email ?? 'not set'}`}
+              >
+                {client.email ?? 'Add sign-in email'}
+              </button>
+            </span>
+          }
+        />
+      </TableCell>
       <TableCell stack>
         <span className="medium">{week ? weekTitle(week) : 'No program yet'}</span>
         <span className="caption">{week ? shortTheme(week.theme) : joinedText(client)}</span>
@@ -70,13 +85,15 @@ function ClientRow({ client, today }: { client: Client; today: string }) {
 function AddClient({ onData }: { onData: (data: Data) => void }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [error, setError] = useState('')
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     try {
-      onData(await addClient(name))
+      onData(await addClient(name, email))
       setName('')
+      setEmail('')
       setError('')
       setOpen(false)
     } catch (e) {
@@ -97,15 +114,56 @@ function AddClient({ onData }: { onData: (data: Data) => void }) {
         }
       >
         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+        <TextField
+          label="Email" type="email" className="dialog-field" value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <p className="caption dialog-hint">The Google account they sign in to the app with. You can add it later.</p>
         {error && <p role="alert" className="error-text">{error}</p>}
       </Dialog>
     </>
   )
 }
 
+/** Only rendered while open, so each client starts from their own saved email. */
+function EditEmail({ client, onData, onClose }: { client: Client; onData: (data: Data) => void; onClose: () => void }) {
+  const [email, setEmail] = useState(client.email ?? '')
+  const [error, setError] = useState('')
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    try {
+      onData(await setClientEmail(client.id, email))
+      onClose()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Couldn't reach the server.")
+    }
+  }
+
+  return (
+    <Dialog
+      open onClose={onClose} title="Sign-in email" onSubmit={submit}
+      actions={
+        <>
+          <Button variant="text" onClick={onClose}>Cancel</Button>
+          <Button type="submit">Save</Button>
+        </>
+      }
+    >
+      <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+      <p className="caption dialog-hint">
+        {firstName(client.name)} signs in to the app with this Google account.
+        {client.email && ' Changing it signs them out.'}
+      </p>
+      {error && <p role="alert" className="error-text">{error}</p>}
+    </Dialog>
+  )
+}
+
 export function Clients({ data, onData }: { data: Data; onData: (data: Data) => void }) {
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
+  const [editingEmail, setEditingEmail] = useState<string | null>(null)
   const today = toDateString(new Date())
 
   const { clients, coach } = data
@@ -153,9 +211,15 @@ export function Clients({ data, onData }: { data: Data; onData: (data: Data) => 
 
       <Card clip>
         <Table label="Clients" columns={COLUMNS} minWidth={1000} empty="No clients match.">
-          {visible.map((client) => <ClientRow key={client.id} client={client} today={today} />)}
+          {visible.map((client) => (
+            <ClientRow key={client.id} client={client} today={today} onEditEmail={() => setEditingEmail(client.id)} />
+          ))}
         </Table>
       </Card>
+
+      {clients.filter((client) => client.id === editingEmail).map((client) => (
+        <EditEmail key={client.id} client={client} onData={onData} onClose={() => setEditingEmail(null)} />
+      ))}
     </>
   )
 }

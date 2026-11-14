@@ -1,6 +1,7 @@
 import { join, resolve } from 'node:path'
 import express from 'express'
 import { createApp } from './app.ts'
+import { googleVerifier } from './google.ts'
 import { demoSeed, seed } from './seed.ts'
 import { databaseUrl, openStore } from './store.ts'
 
@@ -20,7 +21,14 @@ const store = await openStore(
   process.env.DEMO ? { url: databaseUrl, schema: 'demo', reset: true } : { url: databaseUrl },
   process.env.DEMO ? demoSeed : seed,
 )
-const app = createApp(store, { password })
+// The OAuth client ID of type "Web application" from the Google Cloud console. The Android app asks
+// Google for ID tokens issued to that same ID.
+const googleClientId = process.env.GOOGLE_CLIENT_ID
+if (production && !googleClientId) console.warn('GOOGLE_CLIENT_ID is not set; clients cannot sign in.')
+const app = createApp(store, {
+  password,
+  verifyGoogleToken: googleClientId ? googleVerifier(googleClientId) : undefined,
+})
 
 if (production) {
   const dist = join(root, 'dist')

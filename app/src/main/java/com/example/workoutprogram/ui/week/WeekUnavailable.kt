@@ -9,6 +9,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,7 +24,7 @@ import com.example.workoutprogram.ui.theme.WorkoutProgramTheme
 
 /** Shown instead of the week screen until the first week has been loaded. */
 @Composable
-fun WeekUnavailable(state: LoadState, onRetry: () -> Unit) {
+fun WeekUnavailable(state: LoadState, onRetry: () -> Unit, onSignOut: () -> Unit) {
     Scaffold { padding ->
         Box(
             modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
@@ -36,12 +37,14 @@ fun WeekUnavailable(state: LoadState, onRetry: () -> Unit) {
                     title = stringResource(R.string.no_week_title),
                     body = stringResource(R.string.no_week_body),
                     onRetry = onRetry,
+                    onSignOut = onSignOut,
                 )
 
                 LoadState.Failed -> Message(
                     title = stringResource(R.string.load_failed_title),
                     body = stringResource(R.string.load_failed_body),
                     onRetry = onRetry,
+                    onSignOut = onSignOut,
                 )
             }
         }
@@ -49,7 +52,7 @@ fun WeekUnavailable(state: LoadState, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun Message(title: String, body: String, onRetry: () -> Unit) {
+private fun Message(title: String, body: String, onRetry: () -> Unit, onSignOut: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
@@ -59,6 +62,9 @@ private fun Message(title: String, body: String, onRetry: () -> Unit) {
         Button(onClick = onRetry) {
             Text(stringResource(R.string.try_again))
         }
+        TextButton(onClick = onSignOut) {
+            Text(stringResource(R.string.sign_out))
+        }
     }
 }
 
@@ -66,6 +72,6 @@ private fun Message(title: String, body: String, onRetry: () -> Unit) {
 @Composable
 private fun NoWeekPreview() {
     WorkoutProgramTheme {
-        WeekUnavailable(LoadState.NoWeek) {}
+        WeekUnavailable(LoadState.NoWeek, {}, {})
     }
 }

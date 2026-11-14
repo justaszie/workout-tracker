@@ -25,7 +25,7 @@ const week = (fields: Partial<Week> = {}): Week => ({
 })
 
 const client = (weeks: Week[], name = 'Alex Petrauskas'): Client => ({
-  id: 'c', name, initials: 'AP', joinedOn: '2026-10-01', weeks, draft: null,
+  id: 'c', name, initials: 'AP', joinedOn: '2026-10-01', email: null, weeks, draft: null,
 })
 
 const today = '2026-10-31'
