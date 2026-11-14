@@ -1,6 +1,6 @@
 import { join, resolve } from 'node:path'
 import express from 'express'
-import { createApp } from './app.ts'
+import { createApp, emailList } from './app.ts'
 import { googleVerifier } from './google.ts'
 import { demoSeed, seed } from './seed.ts'
 import { databaseUrl, openStore } from './store.ts'
@@ -10,9 +10,18 @@ const password = process.env.APP_PASSWORD
 const production = process.env.NODE_ENV === 'production'
 const port = Number(process.env.PORT ?? 3000)
 
-// Without a password the server only accepts connections from this machine.
-const host = password ? '0.0.0.0' : '127.0.0.1'
-if (production && !password) console.warn('APP_PASSWORD is not set; listening on localhost only.')
+// The OAuth client ID of type "Web application" from the Google Cloud console. The Android app and
+// the web app both ask Google for ID tokens issued to it.
+const googleClientId = process.env.GOOGLE_CLIENT_ID
+// The Google accounts that may sign in to the web app as the coach, separated by commas.
+const coachEmails = emailList(process.env.COACH_EMAILS)
+if (coachEmails.length && !googleClientId) throw new Error('COACH_EMAILS needs GOOGLE_CLIENT_ID.')
+
+// With nothing for the coach to sign in with, the server only accepts connections from this machine.
+const host = password || coachEmails.length ? '0.0.0.0' : '127.0.0.1'
+if (production && host === '127.0.0.1') {
+  console.warn('Neither COACH_EMAILS nor APP_PASSWORD is set; listening on localhost only.')
+}
 
 if (production && !process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set.')
 
@@ -21,12 +30,10 @@ const store = await openStore(
   process.env.DEMO ? { url: databaseUrl, schema: 'demo', reset: true } : { url: databaseUrl },
   process.env.DEMO ? demoSeed : seed,
 )
-// The OAuth client ID of type "Web application" from the Google Cloud console. The Android app asks
-// Google for ID tokens issued to that same ID.
-const googleClientId = process.env.GOOGLE_CLIENT_ID
 if (production && !googleClientId) console.warn('GOOGLE_CLIENT_ID is not set; clients cannot sign in.')
 const app = createApp(store, {
   password,
+  coach: googleClientId ? { emails: coachEmails, googleClientId } : undefined,
   verifyGoogleToken: googleClientId ? googleVerifier(googleClientId) : undefined,
 })
 

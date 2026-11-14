@@ -90,6 +90,9 @@ input[type=number] { -moz-appearance: textfield; }
   letter-spacing: 0.5px;
 }
 
+button.rail-item { border: 0; background: none; cursor: pointer; }
+button.rail-item:hover .rail-pill { background: var(--grey-95); }
+
 .rail-item[aria-current] { color: var(--ink); font-weight: 700; }
 .rail-item[aria-disabled] { cursor: not-allowed; }
 
@@ -106,6 +109,13 @@ input[type=number] { -moz-appearance: textfield; }
 
 .main { flex: 999 1 560px; min-width: 0; padding: 24px clamp(16px, 4vw, 48px) 48px; }
 .page { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+
+.sign-in { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+/* Two classes, to win over .card-padded further down. */
+.sign-in .sign-in-card { width: 100%; max-width: 400px; padding: 32px; align-items: center; text-align: center; }
+.sign-in-card .rail-logo { margin: 0; }
+.sign-in-button { min-height: 44px; }
+.sign-in-card .errors { align-self: stretch; text-align: left; }
 
 /* Type */
 

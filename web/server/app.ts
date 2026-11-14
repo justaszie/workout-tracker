@@ -12,26 +12,52 @@ import { Refused, type Store } from './store.ts'
 
 interface Options {
   /**
-   * The coach's password. When set, every request needs HTTP Basic auth with it and any username,
-   * except the client app's own routes under /api/auth and /api/me. Without it, anyone who can
-   * reach the server is the coach, and can sign in as any client through /api/auth/dev.
+   * The coach's password. When set, HTTP Basic auth with it and any username lets a request in as
+   * the coach. The client app's own routes under /api/auth and /api/me never need it.
    */
   password?: string
+  /**
+   * Lets the coach sign in to the web app with any of these Google accounts. They all see and
+   * change the same clients. [verifyGoogleToken] has to be set too. With neither this nor a
+   * password, anyone who can reach the server is the coach, and can sign in as any client through
+   * /api/auth/dev.
+   */
+  coach?: {
+    emails: string[]
+    /** The OAuth client ID the web app asks Google for ID tokens with. */
+    googleClientId: string
+  }
   today?: () => string
-  /** Checks a Google ID token. Without it, clients can't sign in with Google. */
+  /** Checks a Google ID token. Without it, nobody can sign in with Google. */
   verifyGoogleToken?: VerifyGoogleToken
 }
 
+/** The addresses in a comma-separated setting such as COACH_EMAILS, in lower case. */
+export const emailList = (setting = '') =>
+  setting.split(',').map((email) => email.trim().toLowerCase()).filter(Boolean)
+
 const sha256 = (text: string) => createHash('sha256').update(text).digest()
 
-function basicAuth(password: string) {
-  const expected = sha256(password)
-  return (req: Request, res: Response, next: NextFunction) => {
-    const encoded = req.headers.authorization?.match(/^Basic (.+)$/)?.[1] ?? ''
-    const supplied = Buffer.from(encoded, 'base64').toString().split(':').slice(1).join(':')
-    if (timingSafeEqual(sha256(supplied), expected)) return next()
-    res.set('WWW-Authenticate', 'Basic realm="Coach"').status(401).end()
-  }
+function hasPassword(req: Request, password: string) {
+  const encoded = req.headers.authorization?.match(/^Basic (.+)$/)?.[1] ?? ''
+  const supplied = Buffer.from(encoded, 'base64').toString().split(':').slice(1).join(':')
+  return timingSafeEqual(sha256(supplied), sha256(password))
+}
+
+// The coach's session token lives in a cookie that scripts can't read and that browsers don't
+// send with requests from other sites.
+const coachCookie = 'coach_session'
+const sessionSeconds = 90 * 24 * 60 * 60
+
+const coachToken = (req: Request) =>
+  req.headers.cookie?.match(new RegExp(`(?:^|; )${coachCookie}=([^;]+)`))?.[1]
+
+function setCoachCookie(req: Request, res: Response, token: string | null) {
+  const https = req.secure || req.headers['x-forwarded-proto'] === 'https'
+  res.append('Set-Cookie', [
+    `${coachCookie}=${token ?? ''}`, 'Path=/api', 'HttpOnly', 'SameSite=Lax',
+    `Max-Age=${token ? sessionSeconds : 0}`, ...https ? ['Secure'] : [],
+  ].join('; '))
 }
 
 /** Session tokens are only ever stored hashed, as text. */
@@ -120,9 +146,23 @@ function mergeProgress(week: Week, progress: WeekProgress): Week {
 export function createApp(store: Store, options: Options = {}) {
   const today = options.today ?? (() => toDateString(new Date()))
   const app = express()
-  if (options.password) {
-    const coachOnly = basicAuth(options.password)
-    app.use((req, res, next) => (forClientApp(req.path) ? next() : coachOnly(req, res, next)))
+  const { password } = options
+  const verifyGoogleToken = options.verifyGoogleToken
+  const coach = verifyGoogleToken && options.coach?.emails.length
+    ? { ...options.coach, verify: verifyGoogleToken }
+    : null
+  if (password || coach) {
+    app.use(async (req, res, next) => {
+      if (forClientApp(req.path)) return next()
+      // The web app has to load before the coach can sign in to it, so only the API is closed.
+      if (coach && !req.path.startsWith('/api/')) return next()
+      if (password && hasPassword(req, password)) return next()
+      const token = coach && coachToken(req)
+      if (token && await store.coachSession(tokenHash(token))) return next()
+      // With only a password, the browser's own prompt is the sign-in screen.
+      if (!coach) res.set('WWW-Authenticate', 'Basic realm="Coach"')
+      res.status(401).json({ errors: ['Sign in to continue.'] })
+    })
   }
 
   const api = express.Router()
@@ -139,11 +179,11 @@ export function createApp(store: Store, options: Options = {}) {
   }
 
   api.post('/auth/google', async (req, res) => {
-    if (!options.verifyGoogleToken) {
+    if (!verifyGoogleToken) {
       return void res.status(503).json({ errors: ['Google sign-in is not set up on this server.'] })
     }
     const idToken: unknown = req.body?.idToken
-    const identity = typeof idToken === 'string' ? await options.verifyGoogleToken(idToken) : null
+    const identity = typeof idToken === 'string' ? await verifyGoogleToken(idToken) : null
     if (!identity) return void res.status(401).json({ errors: ['Google sign-in failed. Try again.'] })
     const clientId = await store.clientForGoogle(identity.sub, identity.email)
     if (!clientId) {
@@ -152,9 +192,9 @@ export function createApp(store: Store, options: Options = {}) {
     await startSession(clientId, res)
   })
 
-  // For development without a Google account. Without a password the server only listens on
-  // localhost and the whole API is open anyway, so this gives away nothing more.
-  if (!options.password) {
+  // For development without a Google account. With no password and no coach sign-in the server
+  // only listens on localhost and the whole API is open anyway, so this gives away nothing more.
+  if (!password && !coach) {
     api.post('/auth/dev', async (req, res) => {
       const client = await store.client(String(req.body?.clientId))
       await startSession(client.id, res)
@@ -164,6 +204,35 @@ export function createApp(store: Store, options: Options = {}) {
   api.post('/auth/sign-out', async (req, res) => {
     const token = bearerToken(req)
     if (token) await store.deleteSession(tokenHash(token))
+    res.status(204).end()
+  })
+
+  // Signing in to the web app. It asks here first, to learn whether it has to and with which
+  // Google client ID.
+  api.get('/auth/coach', (_req, res) => {
+    res.json({ googleClientId: coach ? coach.googleClientId : null })
+  })
+
+  api.post('/auth/coach/google', async (req, res) => {
+    if (!coach) {
+      return void res.status(503).json({ errors: ['Coach sign-in is not set up on this server.'] })
+    }
+    const idToken: unknown = req.body?.idToken
+    const identity = typeof idToken === 'string' ? await coach.verify(idToken) : null
+    if (!identity) return void res.status(401).json({ errors: ['Google sign-in failed. Try again.'] })
+    if (!coach.emails.includes(identity.email.toLowerCase())) {
+      return void res.status(403).json({ errors: [`${identity.email} is not a coach's account.`] })
+    }
+    const token = randomBytes(32).toString('base64url')
+    await store.createCoachSession(tokenHash(token))
+    setCoachCookie(req, res, token)
+    res.status(204).end()
+  })
+
+  api.post('/auth/coach/sign-out', async (req, res) => {
+    const token = coachToken(req)
+    if (token) await store.deleteCoachSession(tokenHash(token))
+    setCoachCookie(req, res, null)
     res.status(204).end()
   })
 

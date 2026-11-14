@@ -1,24 +1,32 @@
 import type { Data, PlanForm } from '../shared/model.ts'
 
-async function request(path: string, method = 'GET', body?: unknown): Promise<Data> {
+async function request<T = Data>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const response = await fetch(`/api${path}`, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   })
   const json = await response.json().catch(() => null)
-  if (!response.ok) throw new ApiError(json?.errors ?? ['Something went wrong. Try again.'])
+  if (!response.ok) throw new ApiError(json?.errors ?? ['Something went wrong. Try again.'], response.status)
   return json
 }
 
 export class ApiError extends Error {
   errors: string[]
+  /** 401 means the coach has to sign in. */
+  status: number
 
-  constructor(errors: string[]) {
+  constructor(errors: string[], status: number) {
     super(errors.join(' '))
     this.errors = errors
+    this.status = status
   }
 }
+
+/** How the coach signs in. Without a Google client ID the server doesn't use Google for it. */
+export const coachSignIn = () => request<{ googleClientId: string | null }>('/auth/coach')
+export const signInWithGoogle = (idToken: string) => request<null>('/auth/coach/google', 'POST', { idToken })
+export const signOut = () => request<null>('/auth/coach/sign-out', 'POST')
 
 export const loadData = () => request('/data')
 export const addClient = (name: string, email: string) => request('/clients', 'POST', { name, email })
