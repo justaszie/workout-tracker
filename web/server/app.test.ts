@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { after, beforeEach, describe, it } from 'node:test'
 import type { Data, PlanForm, Week } from '../shared/model.ts'
 import { blankExercise, blankPlan, toPlanForm } from '../shared/plan.ts'
-import { createApp } from './app.ts'
+import { createApp, emailList } from './app.ts'
 import { databaseUrl, openStore, type Store } from './store.ts'
 
 // Needs a running Postgres. Everything happens in the `test` schema of DATABASE_URL's database.
@@ -31,12 +31,15 @@ const verifyGoogleToken = async (idToken: string) => {
   return email ? { sub, email } : null
 }
 
-async function start(password?: string, google = true) {
+const coachAccount = { emails: emailList('Coach@Example.com, tester@example.com,'), googleClientId: 'web-client-id' }
+
+async function start(password?: string, google = true, coach = false) {
   await stop()
   now = today
   store = await openStore({ ...database, reset: true }, seed)
   server = createApp(store, {
     password, today: () => now, verifyGoogleToken: google ? verifyGoogleToken : undefined,
+    coach: coach ? coachAccount : undefined,
   }).listen(0)
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`
 }
@@ -374,6 +377,83 @@ describe('client sign-in', () => {
   it('says so when Google sign-in is not set up', async () => {
     await start('secret', false)
     assert.equal((await signIn('g-1 me@example.com')).status, 503)
+  })
+})
+
+describe('coach sign-in', () => {
+  const signIn = (idToken: unknown) => send('POST', '/auth/coach/google', { idToken })
+  const withCookie = (cookie: string, path: string, method = 'GET') =>
+    fetch(base + path, { method, headers: { Cookie: cookie } })
+  const cookieFor = async (idToken: string): Promise<string> => {
+    const response = await signIn(idToken)
+    assert.equal(response.status, 204)
+    const cookie = response.headers.get('set-cookie') ?? ''
+    assert.match(cookie, /^coach_session=[\w-]+; Path=\/api; HttpOnly; SameSite=Lax; Max-Age=7776000$/)
+    return cookie.split(';')[0]
+  }
+
+  beforeEach(() => start(undefined, true, true))
+
+  it('closes the API until the coach signs in, without the browser asking for a password', async () => {
+    const closed = await fetch(`${base}/data`)
+    assert.equal(closed.status, 401)
+    assert.equal(closed.headers.get('www-authenticate'), null)
+    assert.equal((await send('POST', '/clients', { name: 'New Client' })).status, 401)
+    assert.equal((await send('POST', '/auth/dev', { clientId: 'me' })).status, 404)
+
+    const cookie = await cookieFor('g-1 coach@example.com')
+    assert.equal((await withCookie(cookie, '/data')).status, 200)
+    assert.equal((await withCookie('coach_session=made-up', '/data')).status, 401)
+  })
+
+  it('tells the web app which Google client ID to sign in with', async () => {
+    assert.deepEqual(await (await fetch(`${base}/auth/coach`)).json(), { googleClientId: 'web-client-id' })
+    await start('secret')
+    assert.deepEqual(await (await fetch(`${base}/auth/coach`)).json(), { googleClientId: null })
+    assert.equal((await signIn('g-1 coach@example.com')).status, 503)
+  })
+
+  it('lets every listed account in as the same coach', async () => {
+    const tester = await cookieFor('g-2 Tester@example.com')
+    assert.equal((await withCookie(tester, '/data')).status, 200)
+  })
+
+  it('refuses a token Google did not sign, and an account that is not listed', async () => {
+    assert.equal((await signIn('forged')).status, 401)
+    assert.equal((await signIn(undefined)).status, 401)
+    const stranger = await signIn('g-9 stranger@example.com')
+    assert.equal(stranger.status, 403)
+    assert.match((await stranger.json()).errors[0], /stranger@example.com/)
+    assert.equal(stranger.headers.get('set-cookie'), null)
+  })
+
+  it('keeps coach and client sessions apart', async () => {
+    const cookie = await cookieFor('g-1 coach@example.com')
+    await withCookie(cookie, '/data')
+    const coachToken = cookie.split('=')[1]
+    const asBearer = { headers: { Authorization: `Bearer ${coachToken}` } }
+    assert.equal((await fetch(`${base}/me/current-week`, asBearer)).status, 401)
+
+    await store.setEmail('me', 'me@example.com')
+    const { token } = await (await send('POST', '/auth/google', { idToken: 'g-2 me@example.com' })).json()
+    assert.equal((await withCookie(`coach_session=${token}`, '/data')).status, 401)
+  })
+
+  it('signs out one browser and leaves the others', async () => {
+    const laptop = await cookieFor('g-1 coach@example.com')
+    const desktop = await cookieFor('g-1 coach@example.com')
+    const response = await withCookie(laptop, '/auth/coach/sign-out', 'POST')
+    assert.equal(response.status, 204)
+    assert.match(response.headers.get('set-cookie') ?? '', /^coach_session=; .*Max-Age=0$/)
+    assert.equal((await withCookie(laptop, '/data')).status, 401)
+    assert.equal((await withCookie(desktop, '/data')).status, 200)
+  })
+
+  it('still takes the password, for copies of the Android app from before sign-in', async () => {
+    await start('secret', true, true)
+    const right = { Authorization: `Basic ${btoa('coach:secret')}` }
+    assert.equal((await fetch(`${base}/data`, { headers: right })).status, 200)
+    assert.equal((await fetch(`${base}/data`)).status, 401)
   })
 })
 

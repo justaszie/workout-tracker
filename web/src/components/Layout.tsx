@@ -83,6 +83,8 @@ export interface NavItem {
   icon: IconName
   /** In-app path; leave out with `disabled` for sections not built yet. */
   to?: string
+  /** Makes the item a button, for an action such as signing out, instead of a link. */
+  onClick?: () => void
   current?: boolean
   disabled?: boolean
 }
@@ -106,6 +108,9 @@ export function NavRail({ items, title = 'Workout Program' }: NavRailProps) {
               {content}
             </Link>
           )
+        }
+        if (item.onClick && !item.disabled) {
+          return <button key={item.label} type="button" className="rail-item" onClick={item.onClick}>{content}</button>
         }
         return (
           <span key={item.label} className="rail-item" aria-disabled={item.disabled || undefined} title={item.disabled ? 'Not built yet' : undefined}>

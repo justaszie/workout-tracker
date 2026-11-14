@@ -23,6 +23,12 @@ const paths = {
       <circle cx="18" cy="18" r="2" />
     </>
   ),
+  signOut: (
+    <>
+      <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />
+      <path d="M10 8l-4 4 4 4M6 12h10" />
+    </>
+  ),
   search: (
     <>
       <circle cx="11" cy="11" r="7" />

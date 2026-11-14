@@ -36,6 +36,11 @@ export interface Store {
   /** The client a session belongs to, or null if there is none or it has expired. Using a session renews it. */
   sessionClient(tokenHash: string): Promise<string | null>
   deleteSession(tokenHash: string): Promise<void>
+  /** The coach's sessions work like the clients', but belong to nobody: there is one coach. */
+  createCoachSession(tokenHash: string): Promise<void>
+  /** Whether this is a coach session that hasn't expired. Using a session renews it. */
+  coachSession(tokenHash: string): Promise<boolean>
+  deleteCoachSession(tokenHash: string): Promise<void>
   /**
    * Applies [change] to a client while holding its row lock, so concurrent requests for the same
    * client, from any server process, run one at a time. Only `draft` and the latest week are saved.
@@ -90,6 +95,10 @@ const tables = `
   create table if not exists sessions (
     token_hash text primary key,
     client_id text not null references clients on delete cascade,
+    expires_at timestamptz not null
+  );
+  create table if not exists coach_sessions (
+    token_hash text primary key,
     expires_at timestamptz not null
   );
 `
@@ -265,6 +274,27 @@ export async function openStore(options: Options, seed: () => Data): Promise<Sto
 
     async deleteSession(tokenHash) {
       await pool.query('delete from sessions where token_hash = $1', [tokenHash])
+    },
+
+    async createCoachSession(tokenHash) {
+      await pool.query(
+        'insert into coach_sessions (token_hash, expires_at) values ($1, now() + make_interval(days => $2))',
+        [tokenHash, sessionDays],
+      )
+      await pool.query('delete from coach_sessions where expires_at < now()')
+    },
+
+    async coachSession(tokenHash) {
+      const { rowCount } = await pool.query(
+        `update coach_sessions set expires_at = now() + make_interval(days => $2)
+         where token_hash = $1 and expires_at > now()`,
+        [tokenHash, sessionDays],
+      )
+      return rowCount === 1
+    },
+
+    async deleteCoachSession(tokenHash) {
+      await pool.query('delete from coach_sessions where token_hash = $1', [tokenHash])
     },
 
     update: (id, change) => transaction(pool, async (db) => {
