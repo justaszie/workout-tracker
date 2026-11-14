@@ -13,7 +13,8 @@ const dayOffset = (days: number) => {
 
 function client(name: string, joinedDaysAgo: number, weeks: Week[] = []): Client {
   return {
-    id: newId(), name, initials: initialsOf(name), joinedOn: dayOffset(joinedDaysAgo), weeks, draft: null,
+    id: newId(), name, initials: initialsOf(name), joinedOn: dayOffset(joinedDaysAgo),
+    email: null, weeks, draft: null,
   }
 }
 

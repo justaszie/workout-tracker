@@ -24,6 +24,18 @@ export interface Store {
   coach(): Promise<Data['coach']>
   client(id: string): Promise<Client>
   addClient(client: Client): Promise<void>
+  /** Changes who may sign in as a client. Whoever was signed in as them is signed out. */
+  setEmail(id: string, email: string | null): Promise<void>
+  /**
+   * The id of the client a Google account belongs to, or null if the coach hasn't entered its
+   * email. The first sign-in ties the client to that account, so a later change of the account's
+   * email address doesn't lock them out.
+   */
+  clientForGoogle(sub: string, email: string): Promise<string | null>
+  createSession(tokenHash: string, clientId: string): Promise<void>
+  /** The client a session belongs to, or null if there is none or it has expired. Using a session renews it. */
+  sessionClient(tokenHash: string): Promise<string | null>
+  deleteSession(tokenHash: string): Promise<void>
   /**
    * Applies [change] to a client while holding its row lock, so concurrent requests for the same
    * client, from any server process, run one at a time. Only `draft` and the latest week are saved.
@@ -70,15 +82,36 @@ const tables = `
     primary key (client_id, id)
   );
   create index if not exists weeks_by_client on weeks (client_id, seq);
+
+  -- Added after the first release, so they are added to an existing clients table too.
+  alter table clients add column if not exists email text unique;
+  alter table clients add column if not exists google_sub text unique;
+  -- Only a hash of the token is kept, so reading this table doesn't let anyone sign in.
+  create table if not exists sessions (
+    token_hash text primary key,
+    client_id text not null references clients on delete cascade,
+    expires_at timestamptz not null
+  );
 `
 
-const clientColumns = 'id, name, initials, joined_on as "joinedOn", draft'
+const sessionDays = 90
+
+/** Turns the database's unique-email error into an answer for the coach. */
+function refuseTakenEmail(error: unknown): never {
+  const { code, constraint } = error as { code?: string; constraint?: string }
+  if (code === '23505' && constraint === 'clients_email_key') {
+    throw new Refused(409, 'Another client already has that email.')
+  }
+  throw error
+}
+
+const clientColumns = 'id, name, initials, joined_on as "joinedOn", email, draft'
 const weekColumns = `id, block, number, theme, started_on as "startedOn", workouts,
   finished_on as "finishedOn", note, last_activity_on as "lastActivityOn"`
 
 const insertClient = (db: PoolClient, client: Client) => db.query(
-  'insert into clients (id, name, initials, joined_on, draft) values ($1, $2, $3, $4, $5)',
-  [client.id, client.name, client.initials, client.joinedOn, client.draft],
+  'insert into clients (id, name, initials, joined_on, email, draft) values ($1, $2, $3, $4, $5, $6)',
+  [client.id, client.name, client.initials, client.joinedOn, client.email, client.draft],
 )
 
 const saveWeek = (db: PoolClient, clientId: string, week: Week) => db.query(
@@ -188,7 +221,50 @@ export async function openStore(options: Options, seed: () => Data): Promise<Sto
     client: (id) => loadClient(pool, id),
 
     async addClient(client) {
-      await transaction(pool, (db) => insertClient(db, client))
+      await transaction(pool, (db) => insertClient(db, client)).catch(refuseTakenEmail)
+    },
+
+    async setEmail(id, email) {
+      await transaction(pool, async (db) => {
+        const { rows } = await db.query('select email from clients where id = $1 for update', [id])
+        if (!rows[0]) throw new Refused(404, 'No such client.')
+        if (rows[0].email === email) return
+        await db.query('update clients set email = $2, google_sub = null where id = $1', [id, email])
+        await db.query('delete from sessions where client_id = $1', [id])
+      }).catch(refuseTakenEmail)
+    },
+
+    async clientForGoogle(sub, email) {
+      const known = await pool.query('select id from clients where google_sub = $1', [sub])
+      if (known.rows[0]) return known.rows[0].id
+      // A client already tied to another Google account is left alone.
+      const linked = await pool.query(
+        'update clients set google_sub = $1 where email = $2 and google_sub is null returning id',
+        [sub, email.toLowerCase()],
+      )
+      return linked.rows[0]?.id ?? null
+    },
+
+    async createSession(tokenHash, clientId) {
+      await pool.query(
+        `insert into sessions (token_hash, client_id, expires_at)
+         values ($1, $2, now() + make_interval(days => $3))`,
+        [tokenHash, clientId, sessionDays],
+      )
+      await pool.query('delete from sessions where expires_at < now()')
+    },
+
+    async sessionClient(tokenHash) {
+      const { rows } = await pool.query(
+        `update sessions set expires_at = now() + make_interval(days => $2)
+         where token_hash = $1 and expires_at > now() returning client_id`,
+        [tokenHash, sessionDays],
+      )
+      return rows[0]?.client_id ?? null
+    },
+
+    async deleteSession(tokenHash) {
+      await pool.query('delete from sessions where token_hash = $1', [tokenHash])
     },
 
     update: (id, change) => transaction(pool, async (db) => {

@@ -17,7 +17,7 @@ let base: string
 
 const seed = (): Data => ({
   coach: { name: 'Coach', initials: 'C' },
-  clients: [{ id: 'me', name: 'Me', initials: 'M', joinedOn: today, weeks: [], draft: null }],
+  clients: [{ id: 'me', name: 'Me', initials: 'M', joinedOn: today, email: null, weeks: [], draft: null }],
 })
 
 async function stop() {
@@ -25,11 +25,19 @@ async function stop() {
   await store?.close()
 }
 
-async function start(password?: string) {
+// Stands in for Google: a token is 'sub email', and anything else is a token Google didn't sign.
+const verifyGoogleToken = async (idToken: string) => {
+  const [sub, email] = idToken.split(' ')
+  return email ? { sub, email } : null
+}
+
+async function start(password?: string, google = true) {
   await stop()
   now = today
   store = await openStore({ ...database, reset: true }, seed)
-  server = createApp(store, { password, today: () => now }).listen(0)
+  server = createApp(store, {
+    password, today: () => now, verifyGoogleToken: google ? verifyGoogleToken : undefined,
+  }).listen(0)
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`
 }
 
@@ -258,6 +266,114 @@ describe('password', () => {
     assert.equal((await fetch(`${base}/data`, { headers: wrong })).status, 401)
     const right = { Authorization: `Basic ${btoa('coach:secret')}` }
     assert.equal((await fetch(`${base}/data`, { headers: right })).status, 200)
+  })
+})
+
+describe('client sign-in', () => {
+  const coach = { Authorization: `Basic ${btoa('coach:secret')}`, 'Content-Type': 'application/json' }
+  const asCoach = (method: string, path: string, body?: unknown) =>
+    fetch(base + path, { method, headers: coach, body: JSON.stringify(body) })
+  const signIn = (idToken: unknown) => send('POST', '/auth/google', { idToken })
+  const withToken = (token: string, path: string, method = 'GET', body?: unknown) => fetch(base + path, {
+    method,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const tokenFor = async (idToken: string): Promise<string> => {
+    const response = await signIn(idToken)
+    assert.equal(response.status, 200)
+    return (await response.json()).token
+  }
+
+  beforeEach(async () => {
+    await start('secret')
+    await asCoach('PUT', '/clients/me/email', { email: ' Me@Example.com ' })
+    await asCoach('POST', '/clients', { name: 'Other Client', email: 'other@example.com' })
+  })
+
+  it('refuses a token Google did not sign, and an account the coach has not added', async () => {
+    assert.equal((await signIn('forged')).status, 401)
+    assert.equal((await signIn(undefined)).status, 401)
+    const stranger = await signIn('g-9 stranger@example.com')
+    assert.equal(stranger.status, 403)
+    assert.match((await stranger.json()).errors[0], /stranger@example.com/)
+  })
+
+  it('gives the client their own week and nothing of the coach or other clients', async () => {
+    await asCoach('POST', '/clients/me/publish', plan())
+    const token = await tokenFor('g-1 me@example.com')
+
+    const week: Week = await (await withToken(token, '/me/current-week')).json()
+    assert.equal(week.workouts[0].exercises[0].name, 'Squat')
+    const saved = await withToken(token, `/me/weeks/${week.id}/progress`, 'PUT', { note: 'Done' })
+    assert.equal((await saved.json()).note, 'Done')
+    assert.equal((await store.client('me')).weeks[0].note, 'Done')
+    assert.deepEqual(await (await withToken(token, '/me/past-weeks')).json(), [])
+
+    assert.equal((await withToken(token, '/data')).status, 401)
+    assert.equal((await withToken(token, '/clients/me/current-week')).status, 401)
+    // The other client has no week, so their session finds none rather than this one.
+    const other = await tokenFor('g-2 other@example.com')
+    assert.equal((await withToken(other, '/me/current-week')).status, 404)
+  })
+
+  it('needs a session for /me, and the password does not count as one', async () => {
+    assert.equal((await fetch(`${base}/me/current-week`)).status, 401)
+    assert.equal((await fetch(`${base}/me/current-week`, { headers: coach })).status, 401)
+    assert.equal((await withToken('made-up', '/me/current-week')).status, 401)
+  })
+
+  it('remembers the Google account, not the address it had', async () => {
+    await tokenFor('g-1 me@example.com')
+    // The same account under a new address still signs in; another account with the old one doesn't.
+    await tokenFor('g-1 renamed@example.com')
+    assert.equal((await signIn('g-7 me@example.com')).status, 403)
+  })
+
+  it('signs out one session and leaves the others', async () => {
+    const phone = await tokenFor('g-1 me@example.com')
+    const tablet = await tokenFor('g-1 me@example.com')
+    assert.equal((await withToken(phone, '/auth/sign-out', 'POST')).status, 204)
+    assert.equal((await withToken(phone, '/me/past-weeks')).status, 401)
+    assert.equal((await withToken(tablet, '/me/past-weeks')).status, 200)
+  })
+
+  it('signs the client out when the coach changes their email', async () => {
+    const token = await tokenFor('g-1 me@example.com')
+    assert.equal((await asCoach('PUT', '/clients/me/email', { email: 'me@example.com' })).status, 200)
+    assert.equal((await withToken(token, '/me/past-weeks')).status, 200)
+
+    const data: Data = await (await asCoach('PUT', '/clients/me/email', { email: 'new@example.com' })).json()
+    assert.equal(data.clients[0].email, 'new@example.com')
+    assert.equal((await withToken(token, '/me/past-weeks')).status, 401)
+    assert.equal((await signIn('g-1 me@example.com')).status, 403)
+    await tokenFor('g-3 new@example.com')
+  })
+
+  it('refuses an email that is malformed or already used', async () => {
+    assert.equal((await asCoach('PUT', '/clients/me/email', { email: 'nope' })).status, 400)
+    assert.equal((await asCoach('PUT', '/clients/me/email', { email: 'OTHER@example.com' })).status, 409)
+    assert.equal((await asCoach('POST', '/clients', { name: 'Twin', email: 'me@example.com' })).status, 409)
+    assert.equal((await asCoach('PUT', '/clients/nobody/email', { email: 'a@example.com' })).status, 404)
+    assert.equal((await asCoach('PUT', '/clients/me/email', { email: '' })).status, 200)
+    assert.equal((await store.client('me')).email, null)
+  })
+
+  it('has no development sign-in when a password is set', async () => {
+    assert.equal((await send('POST', '/auth/dev', { clientId: 'me' })).status, 404)
+  })
+
+  it('signs in as any client without a password, for development', async () => {
+    await start()
+    const response = await send('POST', '/auth/dev', { clientId: 'me' })
+    const { token } = await response.json()
+    assert.equal((await withToken(token, '/me/past-weeks')).status, 200)
+    assert.equal((await send('POST', '/auth/dev', { clientId: 'nobody' })).status, 404)
+  })
+
+  it('says so when Google sign-in is not set up', async () => {
+    await start('secret', false)
+    assert.equal((await signIn('g-1 me@example.com')).status, 503)
   })
 })
 
