@@ -37,6 +37,7 @@ async function start(password?: string, google = true) {
   store = await openStore({ ...database, reset: true }, seed)
   server = createApp(store, {
     password, today: () => now, verifyGoogleToken: google ? verifyGoogleToken : undefined,
+    googleClientId: 'google-client',
   }).listen(0)
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`
 }
@@ -374,6 +375,68 @@ describe('client sign-in', () => {
   it('says so when Google sign-in is not set up', async () => {
     await start('secret', false)
     assert.equal((await signIn('g-1 me@example.com')).status, 503)
+    assert.deepEqual(await (await fetch(`${base}/auth/config`)).json(), { googleClientId: null, devSignIn: false })
+  })
+
+  it('tells the web app how clients sign in, without the password', async () => {
+    assert.deepEqual(
+      await (await fetch(`${base}/auth/config`)).json(), { googleClientId: 'google-client', devSignIn: false },
+    )
+    await start()
+    assert.equal((await (await fetch(`${base}/auth/config`)).json()).devSignIn, true)
+  })
+
+  describe('sent back from Google by the web app', () => {
+    // What Google's page posts: the ID token, and the value of a cookie its script set on ours.
+    const comeBack = (credential: string, csrf = 'abc', cookie = 'other=1; g_csrf_token=abc') =>
+      fetch(`${base}/auth/google/redirect`, {
+        method: 'POST',
+        redirect: 'manual',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: cookie },
+        body: new URLSearchParams({ credential, g_csrf_token: csrf }),
+      })
+    const answer = (response: Response) => {
+      assert.equal(response.status, 303)
+      const [page, fragment] = response.headers.get('location')!.split('#')
+      assert.equal(page, '/app/')
+      return new URLSearchParams(fragment)
+    }
+
+    it('hands the app a session after the #', async () => {
+      const session = answer(await comeBack('g-1 me@example.com'))
+      assert.equal(session.get('clientId'), 'me')
+      assert.equal((await withToken(session.get('token')!, '/me/past-weeks')).status, 200)
+    })
+
+    it('hands the app the reason when there is no session', async () => {
+      const refused = answer(await comeBack('g-2 stranger@example.com'))
+      assert.equal(refused.get('error'), "Your coach hasn't added stranger@example.com yet.")
+      assert.equal(refused.get('token'), null)
+    })
+
+    it('refuses a form that does not repeat the cookie', async () => {
+      for (const response of [
+        await comeBack('g-1 me@example.com', 'abc', 'g_csrf_token=xyz'),
+        await comeBack('g-1 me@example.com', 'abc', ''),
+        await comeBack('g-1 me@example.com', '', 'g_csrf_token='),
+      ]) {
+        assert.equal(answer(response).get('token'), null)
+      }
+    })
+  })
+})
+
+describe('the client web app page', () => {
+  it('is not behind the coach password, unlike the coach app', async () => {
+    await start('secret')
+    const origin = base.replace('/api', '')
+    // Neither is served by createApp, so getting past the password shows as 404.
+    for (const path of ['/app/', '/app/workouts/w1', '/assets/client.js']) {
+      assert.equal((await fetch(origin + path)).status, 404, path)
+    }
+    for (const path of ['/', '/application', '/api/data']) {
+      assert.equal((await fetch(origin + path)).status, 401, path)
+    }
   })
 })
 

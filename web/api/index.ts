@@ -16,5 +16,6 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID
 
 export default createApp(store, {
   password,
+  googleClientId,
   verifyGoogleToken: googleClientId ? googleVerifier(googleClientId) : undefined,
 })

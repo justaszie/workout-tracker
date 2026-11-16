@@ -27,13 +27,18 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID
 if (production && !googleClientId) console.warn('GOOGLE_CLIENT_ID is not set; clients cannot sign in.')
 const app = createApp(store, {
   password,
+  googleClientId,
   verifyGoogleToken: googleClientId ? googleVerifier(googleClientId) : undefined,
 })
 
+// The client web app lives under /app and the coach's app everywhere else. Each is one page that
+// does its own routing, so any path without a file gets that app's page.
 if (production) {
   const dist = join(root, 'dist')
   app.use(express.static(dist))
-  app.get('/{*path}', (_req, res) => res.sendFile(join(dist, 'index.html')))
+  // Relative to `root`, or a folder starting with a dot anywhere above dist/ would count as hidden.
+  app.get('/app/{*path}', (_req, res) => res.sendFile('app/index.html', { root: dist }))
+  app.get('/{*path}', (_req, res) => res.sendFile('index.html', { root: dist }))
 } else {
   const { createServer } = await import('vite')
   // The default loader imports a temp file and deletes it, which sends `node --watch` into a restart loop.
@@ -43,7 +48,11 @@ if (production) {
     server: { middlewareMode: true },
     appType: 'spa',
   })
+  app.use((req, _res, next) => {
+    if (/^\/app(\/[^.]*)?$/.test(req.path)) req.url = '/app/index.html'
+    next()
+  })
   app.use(vite.middlewares)
 }
 
-app.listen(port, host, () => console.log(`Coach app on http://${host}:${port}`))
+app.listen(port, host, () => console.log(`Coach app on http://${host}:${port}, client app on http://${host}:${port}/app/`))
