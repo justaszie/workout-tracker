@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add to Home Screen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Condensed:wght@700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#C8102E}a:hover{color:#9E0B22}
+</style>
+</helmet>
+<div style="width: 390px; min-height: 844px; box-sizing: border-box; padding: 24px; background: #F7F7F8; color: #1B1B1F; font-family: Roboto, system-ui, sans-serif; font-size: 14px; line-height: 20px; display: flex; flex-direction: column; justify-content: center; gap: 12px">
+  <div style="font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: #C8102E">Workout Program</div>
+  <h1 style="margin: 0; font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 800; font-size: 34px; line-height: 40px; letter-spacing: 0.5px; text-transform: uppercase">Add it to your Home Screen</h1>
+  <div style="color: #4A4A50">It opens full screen like any other app, and you only sign in once.</div>
+
+  <sc-if value="{{isIphone}}" hint-placeholder-val="{{ true }}">
+    <ol style="list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px">
+      <li style="display: flex; align-items: center; gap: 16px; min-height: 72px; box-sizing: border-box; padding: 12px 16px; background: #FFFFFF; border-radius: 16px 16px 4px 4px">
+        <div style="width: 40px; height: 40px; flex: none; border-radius: 20px; background: #E6E6E9; display: flex; align-items: center; justify-content: center; font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; font-size: 18px">1</div>
+        <div style="flex: 1; font-size: 16px; line-height: 24px">Tap <span style="font-weight: 500">Share</span> in Safari's toolbar</div>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4A4A50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"></path><path d="M8 7l4-4 4 4"></path><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"></path></svg>
+      </li>
+      <li style="display: flex; align-items: center; gap: 16px; min-height: 72px; box-sizing: border-box; padding: 12px 16px; background: #FFFFFF; border-radius: 4px">
+        <div style="width: 40px; height: 40px; flex: none; border-radius: 20px; background: #E6E6E9; display: flex; align-items: center; justify-content: center; font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; font-size: 18px">2</div>
+        <div style="flex: 1; font-size: 16px; line-height: 24px">Choose <span style="font-weight: 500">Add to Home Screen</span></div>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4A4A50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
+      </li>
+      <li style="display: flex; align-items: center; gap: 16px; min-height: 72px; box-sizing: border-box; padding: 12px 16px; background: #FFFFFF; border-radius: 4px 4px 16px 16px">
+        <div style="width: 40px; height: 40px; flex: none; border-radius: 20px; background: #E6E6E9; display: flex; align-items: center; justify-content: center; font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; font-size: 18px">3</div>
+        <div style="flex: 1; font-size: 16px; line-height: 24px">Open <span style="font-weight: 500">Workout Program</span> from your Home Screen and sign in there</div>
+      </li>
+    </ol>
+  </sc-if>
+
+  <sc-if value="{{isAndroid}}" hint-placeholder-val="{{ false }}">
+    <button type="button" style="align-self: flex-start; margin-top: 12px; height: 48px; padding: 0 24px; border: 0; border-radius: 24px; background: #C8102E; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 500; letter-spacing: 0.1px; cursor: pointer">Install app</button>
+  </sc-if>
+
+  <a href="SignIn.dc.html" style="align-self: flex-start; margin-left: -12px; height: 48px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 24px; text-decoration: none; font-weight: 500; letter-spacing: 0.1px">Continue in the browser</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"platform":{"editor":"enum","options":["iPhone (Safari)","Android (Chrome)"],"default":"iPhone (Safari)"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const android = (this.props.platform ?? 'iPhone (Safari)') === 'Android (Chrome)';
+    return { isIphone: !android, isAndroid: android };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Log exercise</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Condensed:wght@700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#C8102E}a:hover{color:#9E0B22}
+</style>
+</helmet>
+<div style="width: 390px; min-height: 1160px; box-sizing: border-box; background: #F7F7F8; color: #1B1B1F; font-family: Roboto, system-ui, sans-serif; font-size: 14px; line-height: 20px; display: flex; flex-direction: column">
+  <div style="height: 64px; display: flex; align-items: center; padding: 0 4px">
+    <a href="Workout.dc.html" aria-label="Back" style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: #1B1B1F; border-radius: 24px">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="M12 19l-7-7 7-7"></path></svg>
+    </a>
+  </div>
+  <div style="padding: 0 16px 20px; display: flex; flex-direction: column; gap: 4px">
+    <div style="font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: #C8102E">Upper B · Exercise 2 of 5</div>
+    <h1 style="margin: 0; font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 800; font-size: 32px; line-height: 38px; letter-spacing: 0.5px; text-transform: uppercase">Seated dumbbell shoulder press</h1>
+  </div>
+
+  <div style="flex: 1; padding: 0 16px 24px; display: flex; flex-direction: column">
+    <div style="background: #FFFFFF; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <div style="font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.5px; color: #4A4A50">Sets</div>
+          <div style="font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; font-size: 40px; line-height: 44px">3</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <div style="font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.5px; color: #4A4A50">Reps</div>
+          <div style="font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; font-size: 40px; line-height: 44px">10</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; color: #C8102E">
+          <div style="font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.5px">Target RPE</div>
+          <div style="font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; font-size: 40px; line-height: 44px">8</div>
+        </div>
+      </div>
+      <div style="color: #4A4A50">No set weight — choose one that gets you to about RPE 8 on the last set.</div>
+      <div style="height: 1px; background: #DEDEE2"></div>
+      <div style="display: flex; gap: 12px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A4A50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 1px"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <div style="color: #4A4A50"><span style="font-weight: 500; color: #1B1B1F">Coach:</span> Pick a weight you can control on the way down. Stop the set if your lower back arches.</div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <a href="#" style="height: 32px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px 0 8px; border: 1px solid #74747A; border-radius: 8px; color: #1B1B1F; text-decoration: none; font-weight: 500; letter-spacing: 0.1px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C8102E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 5l12 7-12 7z"></path></svg>Demo video</a>
+        <a href="#" style="height: 32px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px 0 8px; border: 1px solid #74747A; border-radius: 8px; color: #1B1B1F; text-decoration: none; font-weight: 500; letter-spacing: 0.1px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C8102E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path></svg>Setup guide</a>
+      </div>
+    </div>
+
+    <sc-if value="{{lastSetOnly}}" hint-placeholder-val="{{ true }}">
+      <div style="padding: 28px 0 20px; font-weight: 500; letter-spacing: 0.1px; color: #C8102E">Your last set</div>
+      <div style="display: flex; gap: 8px">
+        <button type="button" aria-label="Decrease weight" onClick="{{ minus }}" style="width: 56px; height: 56px; flex: none; margin-top: 8px; border: 0; padding: 0; border-radius: 16px; background: #E6E6E9; color: #1B1B1F; display: flex; align-items: center; justify-content: center; cursor: pointer">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path></svg>
+        </button>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding-top: 8px">
+          <div style="position: relative; display: flex; align-items: center; gap: 8px; height: 56px; box-sizing: border-box; border: 1px solid #74747A; border-radius: 4px; padding: 0 16px">
+            <label for="weight" style="position: absolute; top: -8px; left: 12px; padding: 0 4px; background: #F7F7F8; font-size: 12px; line-height: 16px; color: #4A4A50">Weight used</label>
+            <input id="weight" type="text" inputmode="decimal" value="{{ weight }}" onChange="{{ onWeight }}" style="flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; padding: 0; font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; font-size: 26px; color: #1B1B1F">
+            <span style="font-size: 16px; line-height: 24px; color: #4A4A50">kg</span>
+          </div>
+          <div style="padding: 0 16px; font-size: 12px; line-height: 16px; color: #4A4A50">Last week: 16 kg at RPE 7</div>
+        </div>
+        <button type="button" aria-label="Increase weight" onClick="{{ plus }}" style="width: 56px; height: 56px; flex: none; margin-top: 8px; border: 0; padding: 0; border-radius: 16px; background: #E6E6E9; color: #1B1B1F; display: flex; align-items: center; justify-content: center; cursor: pointer">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+        </button>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 28px 0 12px">
+        <div style="font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: 0.15px">RPE on last set</div>
+        <div style="font-weight: 500; letter-spacing: 0.1px; color: #C8102E">Target 8</div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{ rpes }}" as="item" hint-placeholder-count="10">
+          <sc-if value="{{ item.selected }}" hint-placeholder-val="{{ false }}">
+            <button type="button" aria-label="{{ item.label }}" aria-pressed="true" onClick="{{ item.pick }}" style="height: 56px; border: 0; padding: 0; border-radius: 12px; background: #C8102E; color: #FFFFFF; font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; font-size: 22px; cursor: pointer">{{ item.n }}</button>
+          </sc-if>
+          <sc-if value="{{ item.target }}" hint-placeholder-val="{{ false }}">
+            <button type="button" aria-label="{{ item.label }}" aria-pressed="false" onClick="{{ item.pick }}" style="height: 56px; box-sizing: border-box; border: 2px solid #C8102E; padding: 0; border-radius: 28px; background: #F0F0F2; color: #1B1B1F; font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; font-size: 22px; cursor: pointer">{{ item.n }}</button>
+          </sc-if>
+          <sc-if value="{{ item.plain }}" hint-placeholder-val="{{ true }}">
+            <button type="button" aria-label="{{ item.label }}" aria-pressed="false" onClick="{{ item.pick }}" style="height: 56px; border: 0; padding: 0; border-radius: 28px; background: #F0F0F2; color: #1B1B1F; font-family: 'Roboto Condensed', Roboto, sans-serif; font-weight: 700; font-size: 22px; cursor: pointer">{{ item.n }}</button>
+          </sc-if>
+        </sc-for>
+      </div>
+      <div style="padding: 12px 0 20px; color: #4A4A50"><span style="font-weight: 500; color: #1B1B1F">{{ rpeLabel }}</span> — {{ rpeText }}</div>
+    </sc-if>
+
+    <sc-if value="{{ eachSet }}" hint-placeholder-val="{{ false }}">
+      <div style="padding: 28px 0 12px; font-weight: 500; letter-spacing: 0.1px; color: #C8102E">Your sets</div>
+      <div style="padding-bottom: 12px; display: flex; flex-direction: column; gap: 12px">
+        <div style="color: #4A4A50">Target RPE 8 on the last set · Last week: 16 kg at RPE 7</div>
+        <sc-for list="{{ sets }}" as="set" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <div style="font-weight: 500; letter-spacing: 0.1px">{{ set.title }}</div>
+            <div style="display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 8px; padding-top: 8px">
+              <div style="position: relative; height: 56px; box-sizing: border-box; border: 1px solid #74747A; border-radius: 4px; padding: 0 16px">
+                <label for="{{ set.repsId }}" style="position: absolute; top: -8px; left: 12px; padding: 0 4px; background: #F7F7F8; font-size: 12px; line-height: 16px; color: #4A4A50">Reps</label>
+                <input id="{{ set.repsId }}" type="text" inputmode="numeric" defaultValue="10" style="width: 100%; height: 100%; border: 0; outline: 0; background: none; padding: 0; font-family: inherit; font-size: 16px; color: #1B1B1F">
+              </div>
+              <div style="position: relative; height: 56px; box-sizing: border-box; border: 1px solid #74747A; border-radius: 4px; padding: 0 16px">
+                <label for="{{ set.loadId }}" style="position: absolute; top: -8px; left: 12px; padding: 0 4px; background: #F7F7F8; font-size: 12px; line-height: 16px; color: #4A4A50">Load (kg)</label>
+                <input id="{{ set.loadId }}" type="text" inputmode="decimal" defaultValue="{{ weight }}" style="width: 100%; height: 100%; border: 0; outline: 0; background: none; padding: 0; font-family: inherit; font-size: 16px; color: #1B1B1F">
+              </div>
+              <div style="position: relative; height: 56px; box-sizing: border-box; border: 1px solid #74747A; border-radius: 4px; padding: 0 16px">
+                <label for="{{ set.rpeId }}" style="position: absolute; top: -8px; left: 12px; padding: 0 4px; background: #F7F7F8; font-size: 12px; line-height: 16px; color: #4A4A50">RPE</label>
+                <input id="{{ set.rpeId }}" type="text" inputmode="numeric" defaultValue="{{ rpe }}" style="width: 100%; height: 100%; border: 0; outline: 0; background: none; padding: 0; font-family: inherit; font-size: 16px; color: #1B1B1F">
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <button type="button" role="switch" aria-checked="{{ eachSet }}" onClick="{{ toggleEachSet }}" style="display: flex; align-items: center; gap: 16px; min-height: 72px; width: 100%; border: 0; background: none; padding: 8px 0; text-align: left; font-family: inherit; color: #1B1B1F; cursor: pointer">
+      <span style="flex: 1; display: flex; flex-direction: column">
+        <span style="font-size: 16px; line-height: 24px; letter-spacing: 0.5px">Log each set</span>
+        <span style="font-size: 14px; line-height: 20px; color: #4A4A50">For a short set, or a weight that changed. Off means all 3 sets × 10 reps done.</span>
+      </span>
+      <sc-if value="{{ lastSetOnly }}" hint-placeholder-val="{{ true }}">
+        <span aria-hidden="true" style="width: 52px; height: 32px; flex: none; box-sizing: border-box; border: 2px solid #74747A; border-radius: 16px; background: #E6E6E9; display: flex; align-items: center; padding: 0 6px"><span style="width: 16px; height: 16px; border-radius: 8px; background: #74747A"></span></span>
+      </sc-if>
+      <sc-if value="{{ eachSet }}" hint-placeholder-val="{{ false }}">
+        <span aria-hidden="true" style="width: 52px; height: 32px; flex: none; box-sizing: border-box; border-radius: 16px; background: #C8102E; display: flex; align-items: center; justify-content: flex-end; padding: 0 4px"><span style="width: 24px; height: 24px; border-radius: 12px; background: #FFFFFF"></span></span>
+      </sc-if>
+    </button>
+    <div style="height: 1px; margin: 4px 0 8px; background: #DEDEE2"></div>
+
+    <sc-if value="{{ noteClosed }}" hint-placeholder-val="{{ true }}">
+      <button type="button" onClick="{{ openNote }}" style="align-self: flex-start; margin-left: -12px; height: 48px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 0; border-radius: 24px; background: none; color: #C8102E; font-family: inherit; font-size: 14px; font-weight: 500; letter-spacing: 0.1px; cursor: pointer">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add note for coach
+      </button>
+    </sc-if>
+    <sc-if value="{{ noteOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position: relative; margin: 16px 0; box-sizing: border-box; border: 1px solid #74747A; border-radius: 4px; padding: 16px">
+        <label for="note" style="position: absolute; top: -8px; left: 12px; padding: 0 4px; background: #F7F7F8; font-size: 12px; line-height: 16px; color: #4A4A50">Note for coach</label>
+        <textarea id="note" rows="3" placeholder="How did it go? Anything unusual?" style="display: block; width: 100%; box-sizing: border-box; border: 0; outline: 0; background: none; padding: 0; resize: none; font-family: inherit; font-size: 16px; line-height: 24px; color: #1B1B1F"></textarea>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="background: #FFFFFF; padding: 12px 16px 24px">
+    <a href="Workout.dc.html" style="height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 28px; background: #C8102E; color: #FFFFFF; text-decoration: none; font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: 0.15px">Save and next exercise</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1160}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { rpe: 8, weight: '16', eachSet: false, note: false };
+  }
+  step(delta) {
+    const now = parseFloat(this.state.weight) || 0;
+    const next = Math.max(0, Math.round((now + delta) * 10) / 10);
+    this.setState({ weight: String(next) });
+  }
+  renderVals() {
+    const target = 8;
+    const words = [
+      'very light, barely any effort', 'very light', 'light', 'light, easy to keep going',
+      'moderate, warm-up pace', 'about 4 more reps in the tank', 'about 3 more reps in the tank',
+      'about 2 more reps in the tank', 'maybe 1 more rep', 'max effort, nothing left',
+    ];
+    const s = this.state;
+    const rpes = words.map((_, i) => {
+      const n = i + 1;
+      const selected = n === s.rpe;
+      const isTarget = !selected && n === target;
+      return {
+        n, label: 'RPE ' + n, selected, target: isTarget, plain: !selected && !isTarget,
+        pick: () => this.setState({ rpe: n }),
+      };
+    });
+    const sets = [1, 2, 3].map((n) => ({
+      title: 'Set ' + n, repsId: 'reps-' + n, loadId: 'load-' + n, rpeId: 'rpe-' + n,
+    }));
+    return {
+      rpes, sets,
+      rpe: String(s.rpe),
+      rpeLabel: 'RPE ' + s.rpe,
+      rpeText: words[s.rpe - 1],
+      weight: s.weight,
+      onWeight: (e) => {
+        const v = e.target.value.replace(',', '.');
+        if (v === '' || !isNaN(Number(v))) this.setState({ weight: v });
+      },
+      minus: () => this.step(-2),
+      plus: () => this.step(2),
+      eachSet: s.eachSet,
+      lastSetOnly: !s.eachSet,
+      toggleEachSet: () => this.setState({ eachSet: !s.eachSet }),
+      noteOpen: s.note,
+      noteClosed: !s.note,
+      openNote: () => this.setState({ note: true }),
+    };
+  }
+}
+</script>
+</body>
+</html>
