@@ -13,13 +13,16 @@ import { Refused, type Store } from './store.ts'
 interface Options {
   /**
    * The coach's password. When set, every request needs HTTP Basic auth with it and any username,
-   * except the client app's own routes under /api/auth and /api/me. Without it, anyone who can
-   * reach the server is the coach, and can sign in as any client through /api/auth/dev.
+   * except the client app's own: its routes under /api/auth and /api/me, and its page under /app.
+   * Without it, anyone who can reach the server is the coach, and can sign in as any client
+   * through /api/auth/dev.
    */
   password?: string
   today?: () => string
   /** Checks a Google ID token. Without it, clients can't sign in with Google. */
   verifyGoogleToken?: VerifyGoogleToken
+  /** The OAuth client ID the tokens are issued to, which the client web app's Google button needs. */
+  googleClientId?: string
 }
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest()
@@ -39,7 +42,11 @@ const tokenHash = (token: string) => sha256(token).toString('hex')
 
 const bearerToken = (req: Request) => req.headers.authorization?.match(/^Bearer (.+)$/)?.[1]
 
-const forClientApp = (path: string) => /^\/api\/(auth|me)(\/|$)/.test(path)
+// /assets holds the scripts and styles of both web apps, which the client app's page loads.
+const forClientApp = (path: string) => /^\/(api\/(auth|me)|app|assets)(\/|$)/.test(path)
+
+const cookie = (req: Request, name: string) =>
+  req.headers.cookie?.split(/;\s*/).find((it) => it.startsWith(`${name}=`))?.slice(name.length + 1)
 
 /** The email as stored: trimmed and in lower case, or null when the coach left it empty. */
 function parseEmail(value: unknown): string | null {
@@ -131,25 +138,59 @@ export function createApp(store: Store, options: Options = {}) {
   // Signing in from the client app. A session is a random token that the app sends back as
   // `Authorization: Bearer <token>` on every request to /api/me.
 
-  const startSession = async (clientId: string, res: Response) => {
+  const newSession = async (clientId: string) => {
     const token = randomBytes(32).toString('base64url')
     await store.createSession(tokenHash(token), clientId)
     // The app keeps what one client logged, so it has to notice when a different one signs in.
-    res.json({ token, clientId })
+    return { token, clientId }
   }
 
-  api.post('/auth/google', async (req, res) => {
-    if (!options.verifyGoogleToken) {
-      return void res.status(503).json({ errors: ['Google sign-in is not set up on this server.'] })
-    }
-    const idToken: unknown = req.body?.idToken
+  const startSession = async (clientId: string, res: Response) => {
+    res.json(await newSession(clientId))
+  }
+
+  /** The client the Google ID token belongs to. Throws Refused with the reason there isn't one. */
+  const googleClient = async (idToken: unknown): Promise<string> => {
+    if (!options.verifyGoogleToken) throw new Refused(503, 'Google sign-in is not set up on this server.')
     const identity = typeof idToken === 'string' ? await options.verifyGoogleToken(idToken) : null
-    if (!identity) return void res.status(401).json({ errors: ['Google sign-in failed. Try again.'] })
+    if (!identity) throw new Refused(401, 'Google sign-in failed. Try again.')
     const clientId = await store.clientForGoogle(identity.sub, identity.email)
-    if (!clientId) {
-      return void res.status(403).json({ errors: [`Your coach hasn't added ${identity.email} yet.`] })
+    if (!clientId) throw new Refused(403, `Your coach hasn't added ${identity.email} yet.`)
+    return clientId
+  }
+
+  // What the client web app's sign-in screen needs to know before anyone has signed in.
+  api.get('/auth/config', (_req, res) => {
+    res.json({
+      googleClientId: options.verifyGoogleToken ? options.googleClientId ?? null : null,
+      devSignIn: !options.password,
+    })
+  })
+
+  api.post('/auth/google', async (req, res) => {
+    await startSession(await googleClient(req.body?.idToken), res)
+  })
+
+  // The client web app's Google button sends the browser here, as a form post from Google, rather
+  // than opening a popup: a popup can't hand its result back to a web app on an iPhone's Home
+  // Screen. The session goes to the app in the URL fragment, which browsers don't send anywhere.
+  api.post('/auth/google/redirect', express.urlencoded({ extended: false }), async (req, res) => {
+    const answer = new URLSearchParams()
+    try {
+      // Google sets this cookie from its script on our page and repeats it in the form, which a
+      // form posted by any other site can't do.
+      const csrf: unknown = req.body?.g_csrf_token
+      if (typeof csrf !== 'string' || !csrf || csrf !== cookie(req, 'g_csrf_token')) {
+        throw new Refused(400, 'Google sign-in failed. Try again.')
+      }
+      const session = await newSession(await googleClient(req.body.credential))
+      answer.set('token', session.token)
+      answer.set('clientId', session.clientId)
+    } catch (error) {
+      if (!(error instanceof Refused)) throw error
+      answer.set('error', error.errors[0])
     }
-    await startSession(clientId, res)
+    res.redirect(303, `/app/#${answer}`)
   })
 
   // For development without a Google account. Without a password the server only listens on
